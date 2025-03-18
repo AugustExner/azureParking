@@ -12,8 +12,10 @@ app.use(express.json()); // Middleware to parse JSON
 // Initialize Firebase Admin SDK
 const serviceAccount = require("./privatekeyFirebase.json"); // Replace with your service account key file
 
+const firebaseConfig = JSON.parse(process.env.FIREBASE_SECRET_KEY);
+
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
+  credential: admin.credential.cert(firebaseConfig),
 });
 
 const db = admin.firestore(); // Initialize Firestore
@@ -263,11 +265,11 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
   if (!oldLat || !oldLng || !newLat || !newLng || !street || !registeredCars) {
     return res.status(400).json({ error: "Missing required fields" });
   }
-   console.log("UpdateMultipleParkingSpots")
-   if(oldLat === newLat && oldLng === newLng) {
-    console.log("Samme kordinater")
-   }
-   
+  console.log("UpdateMultipleParkingSpots");
+  if (oldLat === newLat && oldLng === newLng) {
+    console.log("Samme kordinater");
+  }
+
   console.log(
     oldLat,
     oldLng,
@@ -339,8 +341,8 @@ async function updateParkingStatusOfSpots(
 
     if (registeredCars.length > 0) {
       await updateSpotsInFirestore(registeredCars, true, street, direction);
-      console.log("registeredCars")
-      console.log(registeredCars)
+      console.log("registeredCars");
+      console.log(registeredCars);
     }
 
     return { message: "Parking status updated successfully" };
@@ -365,7 +367,9 @@ async function updateSpotsInFirestore(spots, isOccupied, street, direction) {
     const existingParkSnapshot = await existingParkingspotRef.get();
 
     if (existingParkSnapshot.empty) {
-      console.error(`Parking spot ${spot.spotID} not found in ${street}/${direction}`);
+      console.error(
+        `Parking spot ${spot.spotID} not found in ${street}/${direction}`
+      );
       continue;
     }
 
@@ -374,10 +378,11 @@ async function updateSpotsInFirestore(spots, isOccupied, street, direction) {
 
     await parkingSpotRef.update({ occupied: isOccupied });
 
-    console.log(`Updated parking spot ${spot.spotID} occupancy to ${isOccupied} in ${direction}`);
+    console.log(
+      `Updated parking spot ${spot.spotID} occupancy to ${isOccupied} in ${direction}`
+    );
   }
 }
-
 
 async function compareCandidates(allCandidates, registeredCars) {
   console.log("compareCandiates");
