@@ -3,7 +3,7 @@ const admin = require("firebase-admin");
 const fs = require("fs"); // Import fs
 const cors = require("cors"); // Import CORS
 const app = express(); // Initialize Express
-const port = 3000;
+const port = process.env.PORT || 3000;
 const { ParkingSpot, Street } = require("./dataClasses");
 
 app.use(cors()); // Enable CORS for all origins
