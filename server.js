@@ -6,18 +6,21 @@ const app = express(); // Initialize Express
 require("dotenv").config();
 
 const port = process.env.PORT;
+
+// Decode the base64 FIREBASE_ADMIN_SDK_KEY
+const firebaseKeyBase64 = process.env.FIREBASE_ADMIN_SDK_KEY;
+const firebaseKeyJson = JSON.parse(
+  Buffer.from(firebaseKeyBase64, "base64").toString("utf8")
+);
+
 const { ParkingSpot, Street } = require("./dataClasses");
 
 app.use(cors()); // Enable CORS for all origins
 app.use(express.json()); // Middleware to parse JSON
 
 // Initialize Firebase Admin SDK
-const serviceAccount = require("./privatekeyFirebase.json"); // Replace with your service account key file
-
-//const firebaseConfig = JSON.parse(process.env.FIREBASE_SECRET_KEY);
-
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
+  credential: admin.credential.cert(firebaseKeyJson),
 });
 
 const db = admin.firestore(); // Initialize Firestore
