@@ -24,7 +24,7 @@ const db = admin.firestore(); // Initialize Firestore
 
 app.get("/", (req, res) => {
   return res.status(200).json({
-    msg: "Parking-backend Working",
+    msg: "Parking-backend",
   });
 });
 
