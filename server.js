@@ -3,7 +3,9 @@ const admin = require("firebase-admin");
 const fs = require("fs"); // Import fs
 const cors = require("cors"); // Import CORS
 const app = express(); // Initialize Express
-const port = process.env.PORT || 3000;
+require("dotenv").config();
+
+const port = process.env.PORT;
 const { ParkingSpot, Street } = require("./dataClasses");
 
 app.use(cors()); // Enable CORS for all origins
@@ -12,13 +14,19 @@ app.use(express.json()); // Middleware to parse JSON
 // Initialize Firebase Admin SDK
 const serviceAccount = require("./privatekeyFirebase.json"); // Replace with your service account key file
 
-const firebaseConfig = JSON.parse(process.env.FIREBASE_SECRET_KEY);
+//const firebaseConfig = JSON.parse(process.env.FIREBASE_SECRET_KEY);
 
 admin.initializeApp({
-  credential: admin.credential.cert(firebaseConfig),
+  credential: admin.credential.cert(serviceAccount),
 });
 
 const db = admin.firestore(); // Initialize Firestore
+
+app.get("/", (req, res) => {
+  return res.status(200).json({
+    msg: "Parking-backend Working",
+  });
+});
 
 // POST request to upload parking spots from JSON file to Firestore
 app.post("/uploadParkingspots", async (req, res) => {
@@ -385,7 +393,9 @@ async function updateSpotsInFirestore(spots, isOccupied, street, direction) {
 }
 
 async function compareCandidates(allCandidates, registeredCars) {
-  console.log("compareCandiates");
+  console.log("compareCandiates Method:");
+  console.log("registered cars:");
+
   console.log(registeredCars);
   var candidates = [];
 
@@ -397,13 +407,13 @@ async function compareCandidates(allCandidates, registeredCars) {
       car.newLng
     );
 
-    console.log("registeredCarTarget");
-    console.log(registeredCarTarget.targetLat, registeredCarTarget.targetLng);
+    // console.log("registeredCarTarget");
+    // console.log(registeredCarTarget.targetLat, registeredCarTarget.targetLng);
 
     let currentClosetestDistance = 10000.0;
     let currentCandidate;
     allCandidates.forEach((candidate) => {
-      console.log(candidate);
+      // console.log(candidate);
 
       var currentDistance = getDistanceFromLatLonInKm(
         registeredCarTarget.targetLat,
