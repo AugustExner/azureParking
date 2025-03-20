@@ -324,6 +324,7 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
     // Process data
     res.json({
       message: "Updates multiple spots",
+      msg: "UpdateMultipleParkingspots",
     });
   } catch (error) {
     res
