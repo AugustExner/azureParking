@@ -6,7 +6,7 @@ const app = express(); // Initialize Express
 require("dotenv").config();
 
 const port = process.env.PORT;
-const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
+const google_api = process.env.GOOGLE_API_KEY;
 
 // Decode the base64 FIREBASE_ADMIN_SDK_KEY
 const firebaseKeyBase64 = process.env.FIREBASE_ADMIN_SDK_KEY;
@@ -510,7 +510,7 @@ async function mapMatchingAPI(oldLat, oldLng, newLat, newLng, registeredCars) {
     path += `|${car.oldLat},${car.oldLng}|${car.newLat},${car.newLng}`;
   }
 
-  const url = `${baseUrl}?path=${encodeURIComponent(path)}&key=${GOOGLE_API_KEY}`;
+  const url = `${baseUrl}?path=${encodeURIComponent(path)}&key=${google_api}`;
 
   try {
     const response = await fetch(url);
