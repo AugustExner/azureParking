@@ -198,6 +198,7 @@ app.get("/getParkingspots", async (req, res) => {
 });
 
 app.post("/updateMultipleParkingSpots", async (req, res) => {
+  console.log("__________________________");
   console.log("UpdateMultipleParkingSpots");
   const { oldLat, oldLng, newLat, newLng, registeredCars, street } = req.body;
   var candidateCars = [];
@@ -246,10 +247,10 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
         )
     );
 
-    console.log(
-      "Candidate parking spots found:",
-      candidateCars.map((spot) => spot.spotID)
-    );
+    // console.log(
+    //   "Candidate parking spots found:",
+    //   candidateCars.map((spot) => spot.spotID)
+    // );
 
     if (candidateCars.length > 0) {
       const parkedCars = await compareCandidates(candidateCars, snappedCars);
