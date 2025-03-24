@@ -206,11 +206,16 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
   if (!oldLat || !oldLng || !newLat || !newLng || !street || !registeredCars) {
     return res.status(400).json({ error: "Missing required fields" });
   }
-  
 
   try {
     // **Call Map Matching API to get corrected coordinates**
-    const result = await mapMatchingAPI(oldLat, oldLng, newLat, newLng, registeredCars);
+    const result = await mapMatchingAPI(
+      oldLat,
+      oldLng,
+      newLat,
+      newLng,
+      registeredCars
+    );
 
     if (!result) {
       return res.status(500).json({ error: "Map Matching failed" });
@@ -249,7 +254,12 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
     if (candidateCars.length > 0) {
       const parkedCars = await compareCandidates(candidateCars, snappedCars);
       // Pass direction to update the correct Firestore subcollection
-      await updateParkingStatusOfSpots(candidateCars, street, parkedCars, direction);
+      await updateParkingStatusOfSpots(
+        candidateCars,
+        street,
+        parkedCars,
+        direction
+      );
     }
 
     // Process data
@@ -263,7 +273,6 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
       .json({ error: "Internal server error", details: error.message });
   }
 });
-
 
 async function updateParkingStatusOfSpots(
   candidatespots,
@@ -493,7 +502,6 @@ function calculateTarget(oldLat, oldLng, newLat, newLng, street) {
 
 //3. Flip exissting spot
 async function mapMatchingAPI(oldLat, oldLng, newLat, newLng, registeredCars) {
-  const apiKey = "AIzaSyArWBRVsc7tGOvVgQuSyftC4kgeDZeY3ws"; // Replace with a secure method of storing keys
   const baseUrl = "https://roads.googleapis.com/v1/snapToRoads";
 
   // Construct the API path
@@ -502,7 +510,7 @@ async function mapMatchingAPI(oldLat, oldLng, newLat, newLng, registeredCars) {
     path += `|${car.oldLat},${car.oldLng}|${car.newLat},${car.newLng}`;
   }
 
-  const url = `${baseUrl}?path=${encodeURIComponent(path)}&key=${apiKey}`;
+  const url = `${baseUrl}?path=${encodeURIComponent(path)}&key=${GOOGLE_API_KEY}`;
 
   try {
     const response = await fetch(url);
@@ -557,10 +565,6 @@ const registeredCars = [
   },
   { oldLat: 56.173011, oldLng: 10.188295, newLat: 56.17303, newLng: 10.188311 },
 ];
-
-// mapMatchingAPI(oldLat, oldLng, newLat, newLng, registeredCars).then((result) =>
-//   console.log("Processed Snap-to-Road Data:", result)
-// );
 
 // Start the server
 app.listen(port, () => {
