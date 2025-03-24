@@ -223,8 +223,8 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
 
     const { snappedDirection, snappedCars } = result;
 
-    console.log("Snapped Main Path:", snappedDirection);
-    console.log("Snapped Cars:", snappedCars);
+    //console.log("Snapped Main Path:", snappedDirection);
+    //console.log("Snapped Cars:", snappedCars);
 
     // **Use corrected coordinates for parking spot lookup**
     const { candidateSpots, direction } = await findCandidateSpots(
@@ -288,14 +288,12 @@ async function updateParkingStatusOfSpots(
 
     if (candidatespots.length > 0) {
       await updateSpotsInFirestore(candidatespots, false, street, direction);
-      // console.log("candidatespots")
-      // console.log(candidatespots)
+      console.log("Antal candidateSpots: " + candidatespots.length);
     }
 
     if (registeredCars.length > 0) {
       await updateSpotsInFirestore(registeredCars, true, street, direction);
-      console.log("registeredCars");
-      console.log(registeredCars);
+      console.log("Antal registrerede biler: " + registeredCars.length);
     }
 
     return { message: "Parking status updated successfully" };
@@ -309,7 +307,7 @@ async function updateSpotsInFirestore(spots, isOccupied, street, direction) {
   console.log("Updating Firestore for direction:", direction);
 
   for (const spot of spots) {
-    console.log("Processing spot:", spot.spotID);
+    //console.log("Processing spot:", spot.spotID);
 
     const existingParkingspotRef = db
       .collection(street.toLowerCase())
@@ -401,7 +399,7 @@ async function findCandidateSpots(oldLat, oldLng, newLat, newLng, street) {
   } else {
     direction = newLng > oldLng ? "eastern" : "western";
   }
-  console.log(`Detected movement direction: ${direction}`);
+  console.log(`Detected movement direction: ${direction} at ${street} `);
 
   // Fetch parking spots from Firestore
   const parkingSpotsRef = db
