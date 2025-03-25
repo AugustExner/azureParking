@@ -224,9 +224,6 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
 
     const { snappedDirection, snappedCars } = result;
 
-    //console.log("Snapped Main Path:", snappedDirection);
-    //console.log("Snapped Cars:", snappedCars);
-
     // **Use corrected coordinates for parking spot lookup**
     const { candidateSpots, direction } = await findCandidateSpots(
       snappedDirection.oldLat,
@@ -246,11 +243,6 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
           spot.occupied
         )
     );
-
-    // console.log(
-    //   "Candidate parking spots found:",
-    //   candidateCars.map((spot) => spot.spotID)
-    // );
 
     if (candidateCars.length > 0) {
       const parkedCars = await compareCandidates(candidateCars, snappedCars);
@@ -284,17 +276,15 @@ async function updateParkingStatusOfSpots(
   try {
     console.log("Updating parking status...");
     //console.log("Candidates:", candidatespots);
-    //console.log("Registered:", registeredCars);
-    console.log("Direction:", direction);
+    // console.log("Registered:", registeredCars);
+    // console.log("Direction:", direction);
 
     if (candidatespots.length > 0) {
       await updateSpotsInFirestore(candidatespots, false, street, direction);
-      console.log("Antal candidateSpots: " + candidatespots.length);
     }
 
     if (registeredCars.length > 0) {
       await updateSpotsInFirestore(registeredCars, true, street, direction);
-      console.log("Antal registrerede biler: " + registeredCars.length);
     }
 
     return { message: "Parking status updated successfully" };
@@ -305,7 +295,7 @@ async function updateParkingStatusOfSpots(
 }
 
 async function updateSpotsInFirestore(spots, isOccupied, street, direction) {
-  console.log("Updating Firestore for direction:", direction);
+  //console.log("Updating Firestore for direction:", direction);
 
   for (const spot of spots) {
     //console.log("Processing spot:", spot.spotID);
@@ -330,17 +320,15 @@ async function updateSpotsInFirestore(spots, isOccupied, street, direction) {
 
     await parkingSpotRef.update({ occupied: isOccupied });
 
-    console.log(
-      `Updated parking spot ${spot.spotID} occupancy to ${isOccupied} in ${direction}`
-    );
+    if (isOccupied) {
+      console.log(
+        `Updated parking spot ${spot.spotID} occupancy to ${isOccupied} in ${direction}`
+      );
+    }
   }
 }
 
 async function compareCandidates(allCandidates, registeredCars) {
-  console.log("compareCandiates Method:");
-  console.log("registered cars:");
-
-  console.log(registeredCars);
   var candidates = [];
 
   registeredCars.forEach((car) => {
@@ -400,7 +388,6 @@ async function findCandidateSpots(oldLat, oldLng, newLat, newLng, street) {
   } else {
     direction = newLng > oldLng ? "eastern" : "western";
   }
-  console.log(`Detected movement direction: ${direction} at ${street} `);
 
   // Fetch parking spots from Firestore
   const parkingSpotsRef = db
@@ -434,6 +421,9 @@ async function findCandidateSpots(oldLat, oldLng, newLat, newLng, street) {
       );
     }
   });
+  console.log("CandidateSpots: " + candidateSpots.length);
+  console.log("-----------------");
+  console.log(`Detected movement direction: ${direction} at ${street} `);
 
   return { drivenDistance, candidateSpots, direction };
 }
@@ -493,7 +483,7 @@ function calculateTarget(oldLat, oldLng, newLat, newLng, street) {
   // Forward calculations by offset
   const targetLng = offsetPointX + Math.cos(movementAngle) * offsetX;
   const targetLat = offsetPointY + Math.sin(movementAngle) * offsetY;
-  console.log("Calculatetarget return: " + targetLng, targetLat);
+  //console.log("Calculatetarget return: " + targetLng, targetLat);
   return { targetLat, targetLng };
 }
 
@@ -502,14 +492,14 @@ function calculateTarget(oldLat, oldLng, newLat, newLng, street) {
 //3. Flip exissting spot
 async function mapMatchingAPI(oldLat, oldLng, newLat, newLng, registeredCars) {
   const baseUrl = "https://roads.googleapis.com/v1/snapToRoads";
+  console.log("RegisteredCars:", registeredCars.length);
 
-  // Construct the API path
-  let path = `${oldLat},${oldLng}|${newLat},${newLng}`;
+  let path = `${oldLat},${oldLng}`;
   for (const car of registeredCars) {
     path += `|${car.oldLat},${car.oldLng}|${car.newLat},${car.newLng}`;
   }
-
-  const url = `${baseUrl}?path=${encodeURIComponent(path)}&key=${google_api}`;
+  path += `|${newLat},${newLng}`;
+  const url = `${baseUrl}?path=${path}&key=${google_api}`;
 
   try {
     const response = await fetch(url);
@@ -522,48 +512,44 @@ async function mapMatchingAPI(oldLat, oldLng, newLat, newLng, registeredCars) {
       throw new Error("Invalid snappedPoints data received.");
     }
 
-    // Extract the first two points for the main movement
+    // Extract snapped direction (always first two points)
+    let snappedPointsLength = data.snappedPoints.length;
+
     const snappedDirection = {
       oldLat: data.snappedPoints[0].location.latitude,
       oldLng: data.snappedPoints[0].location.longitude,
-      newLat: data.snappedPoints[1].location.latitude,
-      newLng: data.snappedPoints[1].location.longitude,
+      newLat: data.snappedPoints[snappedPointsLength - 1].location.latitude,
+      newLng: data.snappedPoints[snappedPointsLength - 1].location.longitude,
     };
 
-    // Skip the first two points and process the remaining snapped points into registered cars
+    // Extract registered cars, ensuring at least one car is mapped
     const snappedCars = [];
-    for (let i = 2; i < data.snappedPoints.length; i += 2) {
-      if (i + 1 < data.snappedPoints.length) {
-        snappedCars.push({
-          oldLat: data.snappedPoints[i].location.latitude,
-          oldLng: data.snappedPoints[i].location.longitude,
-          newLat: data.snappedPoints[i + 1].location.latitude,
-          newLng: data.snappedPoints[i + 1].location.longitude,
-        });
+    let index = 1;
+
+    for (const car of registeredCars) {
+      if (index < data.snappedPoints.length) {
+        let snappedCar = {
+          oldLat: data.snappedPoints[index].location.latitude,
+          oldLng: data.snappedPoints[index].location.longitude,
+          newLat: data.snappedPoints[index + 1].location.latitude,
+          newLng: data.snappedPoints[index + 1].location.longitude,
+        };
+        snappedCars.push(snappedCar);
+        index += 2;
+      } else {
+        console.warn("Not enough snapped points for a registered car:", car);
+        // Fallback to original data if no snapped points available
+        snappedCars.push(car);
       }
     }
 
+    console.log("Snapped Cars:", snappedCars.length);
     return { snappedDirection, snappedCars };
   } catch (error) {
     console.error("Error fetching map matching data:", error);
     return null;
   }
 }
-
-// Example usage:
-const oldLat = 56.172196;
-const oldLng = 10.187958;
-const newLat = 56.173651;
-const newLng = 10.18858;
-const registeredCars = [
-  {
-    oldLat: 56.172879,
-    oldLng: 10.188256,
-    newLat: 56.172901,
-    newLng: 10.188266,
-  },
-  { oldLat: 56.173011, oldLng: 10.188295, newLat: 56.17303, newLng: 10.188311 },
-];
 
 // Start the server
 app.listen(port, () => {
