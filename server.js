@@ -200,6 +200,8 @@ app.get("/getParkingspots", async (req, res) => {
 app.post("/updateMultipleParkingSpots", async (req, res) => {
   console.log("__________________________");
   console.log("UpdateMultipleParkingSpots");
+  
+
   const { oldLat, oldLng, newLat, newLng, registeredCars, street } = req.body;
   var candidateCars = [];
 
@@ -209,6 +211,7 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
   }
 
   try {
+    console.log(street)
     // **Call Map Matching API to get corrected coordinates**
     const result = await mapMatchingAPI(
       oldLat,
@@ -217,7 +220,7 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
       newLng,
       registeredCars
     );
-
+    
     if (!result) {
       return res.status(500).json({ error: "Map Matching failed" });
     }
@@ -507,6 +510,7 @@ async function mapMatchingAPI(oldLat, oldLng, newLat, newLng, registeredCars) {
       throw new Error(`HTTP error! Status: ${response.status}`);
     }
     const data = await response.json();
+    //console.log(data.snappedPoints)
 
     if (!data.snappedPoints || data.snappedPoints.length < 2) {
       throw new Error("Invalid snappedPoints data received.");
@@ -542,9 +546,14 @@ async function mapMatchingAPI(oldLat, oldLng, newLat, newLng, registeredCars) {
         snappedCars.push(car);
       }
     }
+    // console.log("SnappedDirections:")
+    // console.log(snappedDirection)
+    // console.log("snappedCars:")
+    // console.log(snappedCars)
 
     console.log("Snapped Cars:", snappedCars.length);
     return { snappedDirection, snappedCars };
+    
   } catch (error) {
     console.error("Error fetching map matching data:", error);
     return null;
