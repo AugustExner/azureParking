@@ -208,7 +208,22 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
   // Validate required fields
   if (!oldLat || !oldLng || !newLat || !newLng || !street || !registeredCars) {
     return res.status(400).json({ error: "Missing required fields" });
-  }
+  } 
+
+  // Validate required fields
+if (!oldLat || !oldLng || !newLat || !newLng || !street || !registeredCars) {
+  return res.status(400).json({ error: "Missing required fields" });
+}
+
+// Print the validated values
+console.log("Validated fields:");
+console.log("oldLat:", oldLat);
+console.log("oldLng:", oldLng);
+console.log("newLat:", newLat);
+console.log("newLng:", newLng);
+console.log("street:", street);
+console.log("registeredCars:", registeredCars);
+
 
   try {
     console.log(street)
@@ -220,6 +235,7 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
       newLng,
       registeredCars
     );
+    
     
     if (!result) {
       return res.status(500).json({ error: "Map Matching failed" });
