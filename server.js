@@ -222,7 +222,7 @@ console.log("oldLng:", oldLng);
 console.log("newLat:", newLat);
 console.log("newLng:", newLng);
 console.log("street:", street);
-console.log("registeredCars:", registeredCars);
+console.log("registeredCars: ", registeredCars);
 
 
   try {
