@@ -189,7 +189,6 @@ app.get("/getParkingspots", async (req, res) => {
       parkingSpots[streetName] = streetData; // Store data per street
     }
 
-    console.log(parkingSpots);
     res.json(parkingSpots);
   } catch (error) {
     console.error("Error fetching parking spots:", error);
@@ -200,7 +199,6 @@ app.get("/getParkingspots", async (req, res) => {
 app.post("/updateMultipleParkingSpots", async (req, res) => {
   console.log("__________________________");
   console.log("UpdateMultipleParkingSpots");
-  
 
   const { oldLat, oldLng, newLat, newLng, registeredCars, street } = req.body;
   var candidateCars = [];
@@ -208,25 +206,17 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
   // Validate required fields
   if (!oldLat || !oldLng || !newLat || !newLng || !street || !registeredCars) {
     return res.status(400).json({ error: "Missing required fields" });
-  } 
+  }
 
-  // Validate required fields
-if (!oldLat || !oldLng || !newLat || !newLng || !street || !registeredCars) {
-  return res.status(400).json({ error: "Missing required fields" });
-}
-
-// Print the validated values
-console.log("Validated fields:");
-console.log("oldLat:", oldLat);
-console.log("oldLng:", oldLng);
-console.log("newLat:", newLat);
-console.log("newLng:", newLng);
-console.log("street:", street);
-console.log("registeredCars: ", registeredCars);
-
+  // Print the validated values
+  console.log("Validated fields:");
+  console.log("oldLat:", oldLat);
+  console.log("oldLng:", oldLng);
+  console.log("newLat:", newLat);
+  console.log("newLng:", newLng);
+  console.log("street:", street);
 
   try {
-    console.log(street)
     // **Call Map Matching API to get corrected coordinates**
     const result = await mapMatchingAPI(
       oldLat,
@@ -235,8 +225,7 @@ console.log("registeredCars: ", registeredCars);
       newLng,
       registeredCars
     );
-    
-    
+
     if (!result) {
       return res.status(500).json({ error: "Map Matching failed" });
     }
@@ -265,6 +254,8 @@ console.log("registeredCars: ", registeredCars);
 
     if (candidateCars.length > 0) {
       const parkedCars = await compareCandidates(candidateCars, snappedCars);
+      console.log("parkedCars", parkedCars);
+
       // Pass direction to update the correct Firestore subcollection
       await updateParkingStatusOfSpots(
         candidateCars,
@@ -349,6 +340,7 @@ async function updateSpotsInFirestore(spots, isOccupied, street, direction) {
 
 async function compareCandidates(allCandidates, registeredCars) {
   var candidates = [];
+  let threshold = 0.01; //threshold 10m
 
   registeredCars.forEach((car) => {
     var registeredCarTarget = calculateTarget(
@@ -374,13 +366,17 @@ async function compareCandidates(allCandidates, registeredCars) {
       );
 
       //console.log(candidate);
-      if (currentDistance < currentClosetestDistance) {
+      if (
+        currentDistance < currentClosetestDistance &&
+        currentDistance < threshold
+      ) {
         currentClosetestDistance = currentDistance;
         currentCandidate = candidate;
-        //console.log("log" + candidate);
       }
     });
-    candidates.push(currentCandidate);
+    if (currentCandidate) {
+      candidates.push(currentCandidate);
+    } else (console.log("No valid candidate found for car:", car))
   });
   return candidates;
 }
@@ -442,7 +438,7 @@ async function findCandidateSpots(oldLat, oldLng, newLat, newLng, street) {
   });
   console.log("CandidateSpots: " + candidateSpots.length);
   console.log("-----------------");
-  console.log(`Detected movement direction: ${direction} at ${street} `);
+  console.log(`Direction: ${direction} at ${street} `);
 
   return { drivenDistance, candidateSpots, direction };
 }
@@ -569,7 +565,6 @@ async function mapMatchingAPI(oldLat, oldLng, newLat, newLng, registeredCars) {
 
     console.log("Snapped Cars:", snappedCars.length);
     return { snappedDirection, snappedCars };
-    
   } catch (error) {
     console.error("Error fetching map matching data:", error);
     return null;
