@@ -105,6 +105,8 @@ app.get("/getParkingspots", async (req, res) => {
     const collections = await db.listCollections();
     let parkingSpots = {};
 
+    let registeredCarsData = []; // Initialize outside loop to return
+
     for (const collectionRef of collections) {
       const streetName = collectionRef.id; // Street name as collection ID
       let streetData = {
@@ -189,12 +191,45 @@ app.get("/getParkingspots", async (req, res) => {
       parkingSpots[streetName] = streetData; // Store data per street
     }
 
-    res.json(parkingSpots);
+    // Fetch registered cars
+    const registeredCarRef = db.collection("registeredCars");
+    const registeredCarSnapshot = await registeredCarRef.get();
+
+    if (!registeredCarSnapshot.empty) {
+      registeredCarSnapshot.docs.forEach((car) => {
+        const carData = car.data();
+        registeredCarsData.push({
+          oldLat: carData.oldLat,
+          oldLng: carData.oldLng,
+          newLat: carData.newLat,
+          newLng: carData.newLng,
+        });
+      });
+    }
+
+    res.json({ parkingSpots, registeredCarsData }); // Now returning both
   } catch (error) {
     console.error("Error fetching parking spots:", error);
     res.status(500).json({ error: "Failed to retrieve parking spots" });
   }
 });
+
+async function uploadRegisteredCars(registeredCars) {
+  const batch = db.batch(); // Create a batch operation
+  const collectionRef = db.collection("registeredCars"); // Define collection reference
+
+  if (registeredCars) {
+    registeredCars.forEach((car) => {
+      const docRef = collectionRef.doc(); // Generate a unique document for each car
+      batch.set(docRef, car);
+    });
+
+    await batch.commit(); // Commit the batch operation
+    console.log("Successfully uploaded registered cars.");
+  } else {
+    console.log("No registered cars to upload.");
+  }
+}
 
 app.post("/updateMultipleParkingSpots", async (req, res) => {
   console.log("__________________________");
@@ -218,6 +253,9 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
 
   try {
     // **Call Map Matching API to get corrected coordinates**
+
+    uploadRegisteredCars(registeredCars);
+
     const result = await mapMatchingAPI(
       oldLat,
       oldLng,
@@ -254,7 +292,7 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
 
     if (candidateCars.length > 0) {
       const parkedCars = await compareCandidates(candidateCars, snappedCars);
-      console.log("parkedCars", parkedCars);
+      console.log("mapMatched parkedCars", parkedCars);
 
       // Pass direction to update the correct Firestore subcollection
       await updateParkingStatusOfSpots(
@@ -376,7 +414,7 @@ async function compareCandidates(allCandidates, registeredCars) {
     });
     if (currentCandidate) {
       candidates.push(currentCandidate);
-    } else (console.log("No valid candidate found for car:", car))
+    } else console.log("No valid candidate found for car:", car);
   });
   return candidates;
 }
