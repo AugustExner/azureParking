@@ -585,13 +585,9 @@ async function mapMatchingAPI(oldLat, oldLng, newLat, newLng, registeredCars) {
         let snappedCar = {
           oldLat: data.snappedPoints[index].location.latitude,
           oldLng: data.snappedPoints[index].location.longitude,
-          newLat: car.newLat, // Fallback to original if snapped data is missing
-          newLng: car.newLng
+          newLat: data.snappedPoints[index + 1].location.latitude,
+          newLng: data.snappedPoints[index + 1].location.longitude,
         };
-        if (index + 1 < data.snappedPoints.length) {
-          snappedCar.newLat = data.snappedPoints[index + 1].location.latitude;
-          snappedCar.newLng = data.snappedPoints[index + 1].location.longitude;
-        }
         snappedCars.push(snappedCar);
         index += 2;
       } else {
