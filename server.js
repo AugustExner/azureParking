@@ -263,7 +263,7 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
 
     uploadRegisteredCars(registeredCars);
 
-    const mapMatchingresult = await mapMatchingAPI(
+    const result = await mapMatchingAPI(
       oldLat,
       oldLng,
       newLat,
@@ -275,7 +275,7 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
       return res.status(500).json({ error: "Map Matching failed" });
     }
 
-    const { snappedDirection, snappedCars } = mapMatchingresult;
+    const { snappedDirection, snappedCars } = result;
 
     // **Use corrected coordinates for parking spot lookup**
     const { candidateSpots, direction } = await findCandidateSpots(
