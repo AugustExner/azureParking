@@ -263,7 +263,7 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
 
     uploadRegisteredCars(registeredCars);
 
-    const result = await mapMatchingAPI(
+    const mapMatchingresult = await mapMatchingAPI(
       oldLat,
       oldLng,
       newLat,
@@ -275,7 +275,7 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
       return res.status(500).json({ error: "Map Matching failed" });
     }
 
-    const { snappedDirection, snappedCars } = result;
+    const { snappedDirection, snappedCars } = mapMatchingresult;
 
     // **Use corrected coordinates for parking spot lookup**
     const { candidateSpots, direction } = await findCandidateSpots(
@@ -298,7 +298,7 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
     );
 
     if (candidateCars.length > 0) {
-      const parkedCars = await compareCandidates(candidateCars, snappedCars);
+      const parkedCars = await compareCandidates(candidateCars, registeredCars);
       console.log("mapMatched parkedCars", parkedCars);
 
       // Pass direction to update the correct Firestore subcollection
