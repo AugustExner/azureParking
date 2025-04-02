@@ -242,6 +242,12 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
   if (!oldLat || !oldLng || !newLat || !newLng || !street || !registeredCars) {
     return res.status(400).json({ error: "Missing required fields" });
   }
+  const distanceDriven = getDistanceFromLatLonInKm(
+    oldLat,
+    oldLng,
+    newLat,
+    newLng
+  );
 
   // Print the validated values
   console.log("Validated fields:");
@@ -249,6 +255,7 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
   console.log("oldLng:", oldLng);
   console.log("newLat:", newLat);
   console.log("newLng:", newLng);
+  console.log("Distance", distanceDriven);
   console.log("street:", street);
 
   try {
