@@ -242,6 +242,12 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
   if (!oldLat || !oldLng || !newLat || !newLng || !street || !registeredCars) {
     return res.status(400).json({ error: "Missing required fields" });
   }
+
+  const myAddress = await googleGeocode(oldLat, oldLng);
+ 
+
+ 
+
   const distanceDriven = getDistanceFromLatLonInKm(
     oldLat,
     oldLng,
@@ -257,6 +263,7 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
   console.log("newLng:", newLng);
   console.log("Distance", distanceDriven);
   console.log("street:", street);
+  console.log("myAdress:", myAddress);
 
   try {
     // **Call Map Matching API to get corrected coordinates**
@@ -276,7 +283,6 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
     }
 
     const { snappedDirection, snappedCars } = result;
-
 
     // Finds available parking spots based on the car's movement and queries the Firestore database accordingly.
     const { candidateSpots, direction } = await findCandidateSpots(
@@ -306,7 +312,8 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
       // Pass direction to update the correct Firestore subcollection
       await updateParkingStatusOfSpots(
         candidateCars,
-        street,
+        //street,
+        myAddress,
         parkedCars,
         direction
       );
@@ -326,7 +333,8 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
 
 async function updateParkingStatusOfSpots(
   candidatespots,
-  street,
+  //street,
+  myAddress,
   registeredCars,
   direction
 ) {
@@ -337,11 +345,11 @@ async function updateParkingStatusOfSpots(
     // console.log("Direction:", direction);
 
     if (candidatespots.length > 0) {
-      await updateSpotsInFirestore(candidatespots, false, street, direction);
+      await updateSpotsInFirestore(candidatespots, false, myAddress, direction);
     }
 
     if (registeredCars.length > 0) {
-      await updateSpotsInFirestore(registeredCars, true, street, direction);
+      await updateSpotsInFirestore(registeredCars, true, myAddress, direction);
     }
 
     return { message: "Parking status updated successfully" };
@@ -420,7 +428,7 @@ async function compareCandidates(allCandidates, registeredCars) {
         currentClosestDistance = currentDistance;
         currentCandidate = candidate;
         currentCandidateIndex = index; // Store index for removal
-        console.log("currentCandidateIndex: ", currentCandidate)
+        console.log("currentCandidateIndex: ", currentCandidate);
       }
     });
 
@@ -435,8 +443,6 @@ async function compareCandidates(allCandidates, registeredCars) {
 
   return candidates; // Return the best-matching parking spots for each registered car
 }
-
-
 
 async function findCandidateSpots(oldLat, oldLng, newLat, newLng, street) {
   const candidateSpots = [];
@@ -627,6 +633,33 @@ async function mapMatchingAPI(oldLat, oldLng, newLat, newLng, registeredCars) {
     return null;
   }
 }
+
+async function googleGeocode(lat, lng) {
+  const API_KEY = google_api; // Replace with your actual API key
+  const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${API_KEY}`;
+
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data.status === "OK") {
+      const addressComponents = data.results[0].address_components;
+
+      // Find the object where 'types' includes 'route' (street name)
+      const street = addressComponents.find((component) =>
+        component.types.includes("route")
+      );
+
+      return street ? street.long_name : "Street not found";
+    } else {
+      throw new Error(`Geocoding failed: ${data.status}`);
+    }
+  } catch (error) {
+    console.error("Error fetching geocoding data:", error);
+    return null;
+  }
+}
+
 
 // Start the server
 app.listen(port, () => {
