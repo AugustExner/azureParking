@@ -277,7 +277,8 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
 
     const { snappedDirection, snappedCars } = result;
 
-    // **Use corrected coordinates for parking spot lookup**
+
+    // Finds available parking spots based on the car's movement and queries the Firestore database accordingly.
     const { candidateSpots, direction } = await findCandidateSpots(
       snappedDirection.oldLat,
       snappedDirection.oldLng,
@@ -297,9 +298,10 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
         )
     );
 
+    // Matches registered cars with the closest available parking spot within a 10m threshold.
     if (candidateCars.length > 0) {
       const parkedCars = await compareCandidates(candidateCars, registeredCars);
-      console.log("mapMatched parkedCars", parkedCars);
+      //console.log("mapMatched parkedCars", parkedCars);
 
       // Pass direction to update the correct Firestore subcollection
       await updateParkingStatusOfSpots(
@@ -385,9 +387,11 @@ async function updateSpotsInFirestore(spots, isOccupied, street, direction) {
 
 async function compareCandidates(allCandidates, registeredCars) {
   var candidates = [];
-  let threshold = 0.01; //threshold 10m
+  let threshold = 0.01; // Threshold for matching (10 meters)
 
+  // Iterate over each registered car to find a matching parking spot
   registeredCars.forEach((car) => {
+    // Calculate the target location where the car is expected to stop
     var registeredCarTarget = calculateTarget(
       car.oldLat,
       car.oldLng,
@@ -395,14 +399,12 @@ async function compareCandidates(allCandidates, registeredCars) {
       car.newLng
     );
 
-    // console.log("registeredCarTarget");
-    // console.log(registeredCarTarget.targetLat, registeredCarTarget.targetLng);
+    let currentClosestDistance = 10000.0; // Large initial distance
+    let currentCandidate = null;
+    let currentCandidateIndex = -1; // Track the index for removal
 
-    let currentClosetestDistance = 10000.0;
-    let currentCandidate;
-    allCandidates.forEach((candidate) => {
-      // console.log(candidate);
-
+    // Iterate over all candidate parking spots to find the closest match
+    allCandidates.forEach((candidate, index) => {
       var currentDistance = getDistanceFromLatLonInKm(
         registeredCarTarget.targetLat,
         registeredCarTarget.targetLng,
@@ -410,21 +412,31 @@ async function compareCandidates(allCandidates, registeredCars) {
         candidate.longitude
       );
 
-      //console.log(candidate);
+      // Check if this candidate is the closest valid one within the threshold
       if (
-        currentDistance < currentClosetestDistance &&
+        currentDistance < currentClosestDistance &&
         currentDistance < threshold
       ) {
-        currentClosetestDistance = currentDistance;
+        currentClosestDistance = currentDistance;
         currentCandidate = candidate;
+        currentCandidateIndex = index; // Store index for removal
+        console.log("currentCandidateIndex: ", currentCandidate)
       }
     });
+
+    // If a valid candidate is found, add it to the result list and remove it from allCandidates
     if (currentCandidate) {
       candidates.push(currentCandidate);
-    } else console.log("No valid candidate found for car:", car);
+      allCandidates.splice(currentCandidateIndex, 1); // Remove assigned candidate
+    } else {
+      console.log("No valid candidate found for car:", car);
+    }
   });
-  return candidates;
+
+  return candidates; // Return the best-matching parking spots for each registered car
 }
+
+
 
 async function findCandidateSpots(oldLat, oldLng, newLat, newLng, street) {
   const candidateSpots = [];
