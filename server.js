@@ -243,7 +243,7 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
     return res.status(400).json({ error: "Missing required fields" });
   }
 
-  const myAddress = await googleGeocode(oldLat, oldLng);
+  const myAddress = await googleGeocode(newLat, newLng);
  
 
  
