@@ -243,11 +243,6 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
     return res.status(400).json({ error: "Missing required fields" });
   }
 
-  const myAddress = await googleGeocode(newLat, newLng);
- 
-
- 
-
   const distanceDriven = getDistanceFromLatLonInKm(
     oldLat,
     oldLng,
@@ -263,7 +258,6 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
   console.log("newLng:", newLng);
   console.log("Distance", distanceDriven);
   console.log("street:", street);
-  console.log("myAdress:", myAddress);
 
   try {
     // **Call Map Matching API to get corrected coordinates**
@@ -312,8 +306,7 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
       // Pass direction to update the correct Firestore subcollection
       await updateParkingStatusOfSpots(
         candidateCars,
-        //street,
-        myAddress,
+        street,
         parkedCars,
         direction
       );
@@ -333,8 +326,7 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
 
 async function updateParkingStatusOfSpots(
   candidatespots,
-  //street,
-  myAddress,
+  street,
   registeredCars,
   direction
 ) {
@@ -345,11 +337,11 @@ async function updateParkingStatusOfSpots(
     // console.log("Direction:", direction);
 
     if (candidatespots.length > 0) {
-      await updateSpotsInFirestore(candidatespots, false, myAddress, direction);
+      await updateSpotsInFirestore(candidatespots, false, street, direction);
     }
 
     if (registeredCars.length > 0) {
-      await updateSpotsInFirestore(registeredCars, true, myAddress, direction);
+      await updateSpotsInFirestore(registeredCars, true, street, direction);
     }
 
     return { message: "Parking status updated successfully" };
