@@ -35,68 +35,25 @@ app.get("/", (req, res) => {
 // POST request to upload parking spots from JSON file to Firestore
 app.post("/uploadParkingspots", async (req, res) => {
   try {
-    const data = fs.readFileSync("parkingSpots.json", "utf8");
+    const data = fs.readFileSync("directionBasedParkingSpots.json", "utf8");
     const parkingData = JSON.parse(data);
     const batch = db.batch();
 
-    parkingData.Street.forEach((streetData) => {
-      const streetName = streetData.name; // Get street name
-      console.log(streetName);
+    Object.entries(parkingData).forEach(([direction, spots]) => {
+      spots.forEach((spot) => {
+        const spotRef = db
+          .collection(direction) // Collection named after direction (e.g., "northernParkingSpots")
+          .doc(spot.spotID.toString()); // Each document ID is the spotID
 
-      // Upload southern parking spots
-      if (streetData.southernParkingspots) {
-        streetData.southernParkingspots.forEach((spotData) => {
-          const collectionRef = db
-            .collection(streetName)
-            .doc("southern")
-            .collection("parkingspots");
-          const docRef = collectionRef.doc(); // Generate a unique document for each spot
-          batch.set(docRef, spotData);
-        });
-      }
-
-      // Upload northern parking spots
-      if (streetData.northernParkingspots) {
-        streetData.northernParkingspots.forEach((spotData) => {
-          const collectionRef = db
-            .collection(streetName)
-            .doc("northern")
-            .collection("parkingspots");
-          const docRef = collectionRef.doc();
-          batch.set(docRef, spotData);
-        });
-      }
-
-      // Upload eastern parking spots
-      if (streetData.easternParkingspots) {
-        streetData.easternParkingspots.forEach((spotData) => {
-          const collectionRef = db
-            .collection(streetName)
-            .doc("eastern")
-            .collection("parkingspots");
-          const docRef = collectionRef.doc(); // Generate a unique document for each spot
-          batch.set(docRef, spotData);
-        });
-      }
-
-      // Upload western parking spots
-      if (streetData.westernParkingspots) {
-        streetData.westernParkingspots.forEach((spotData) => {
-          const collectionRef = db
-            .collection(streetName)
-            .doc("western")
-            .collection("parkingspots");
-          const docRef = collectionRef.doc(); // Generate a unique document for each spot
-          batch.set(docRef, spotData);
-        });
-      }
+        batch.set(spotRef, spot);
+      });
     });
 
-    await batch.commit(); // Commit batch write
+    await batch.commit();
     res.status(200).send("Parking spots uploaded successfully.");
   } catch (error) {
     console.error("Error uploading parking spots:", error);
-    res.status(500).send("Error uploading parking spots.");
+    res.status(500).send("Failed to upload parking spots.");
   }
 });
 
@@ -104,8 +61,12 @@ app.get("/getParkingspots", async (req, res) => {
   try {
     const collections = await db.listCollections();
     let parkingSpots = {};
-
     let registeredCarsData = []; // Initialize outside loop to return
+
+    let northernSpots = []; // Initialize outside loop to return
+    let southernSpots = []; // Initialize outside loop to return
+    let easternSpots = []; // Initialize outside loop to return
+    let westernSpots = []; // Initialize outside loop to return
 
     for (const collectionRef of collections) {
       const streetName = collectionRef.id; // Street name as collection ID
@@ -207,7 +168,78 @@ app.get("/getParkingspots", async (req, res) => {
       });
     }
 
-    res.json({ parkingSpots, registeredCarsData }); // Now returning both
+    // Fetch north going cars
+    const northCarRef = db.collection("northernParkingSpots");
+    const northCarSnapshot = await northCarRef.get();
+
+    if (!northCarSnapshot.empty) {
+      northCarSnapshot.docs.forEach((spot) => {
+        const spotData = spot.data();
+        northernSpots.push({
+          latitude: spotData.latitude,
+          longitude: spotData.longitude,
+          occupied: spotData.occupied,
+          spotID: spotData.spotID,
+        });
+      });
+    }
+
+    // Fetch south going cars
+    const southCarRef = db.collection("southernParkingSpots");
+    const southCarSnapshot = await southCarRef.get();
+
+    if (!southCarSnapshot.empty) {
+      southCarSnapshot.docs.forEach((spot) => {
+        const spotData = spot.data();
+        southernSpots.push({
+          latitude: spotData.latitude,
+          longitude: spotData.longitude,
+          occupied: spotData.occupied,
+          spotID: spotData.spotID,
+        });
+      });
+    }
+
+    // Fetch east going cars
+    const eastCarRef = db.collection("easternParkingSpots");
+    const eastCarSnapshot = await eastCarRef.get();
+
+    if (!eastCarSnapshot.empty) {
+      eastCarSnapshot.docs.forEach((spot) => {
+        const spotData = spot.data();
+        easternSpots.push({
+          latitude: spotData.latitude,
+          longitude: spotData.longitude,
+          occupied: spotData.occupied,
+          spotID: spotData.spotID,
+        });
+      });
+    }
+
+    // Fetch west going cars
+    const westCarRef = db.collection("westernParkingSpots");
+    const westCarSnapshot = await westCarRef.get();
+
+    if (!westCarSnapshot.empty) {
+      westCarSnapshot.docs.forEach((spot) => {
+        const spotData = spot.data();
+        westernSpots.push({
+          latitude: spotData.latitude,
+          longitude: spotData.longitude,
+          occupied: spotData.occupied,
+          spotID: spotData.spotID,
+        });
+      });
+    }
+
+    res.json({
+      parkingSpots,
+      registeredCarsData,
+      northernSpots,
+      southernSpots,
+      easternSpots,
+      westernSpots,
+    }); // Now returning both
   } catch (error) {
     console.error("Error fetching parking spots:", error);
     res.status(500).json({ error: "Failed to retrieve parking spots" });
@@ -287,6 +319,8 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
       street.toLowerCase()
     );
 
+    console.log("findcandidateSpots Direction:", direction);
+
     // Convert to ParkingSpot objects
     candidateCars = candidateSpots.map(
       (spot) =>
@@ -297,10 +331,10 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
           spot.occupied
         )
     );
-
     // Matches registered cars with the closest available parking spot within a 10m threshold.
     if (candidateCars.length > 0) {
       const parkedCars = await compareCandidates(candidateCars, registeredCars);
+      
       //console.log("mapMatched parkedCars", parkedCars);
 
       // Pass direction to update the correct Firestore subcollection
@@ -358,16 +392,14 @@ async function updateSpotsInFirestore(spots, isOccupied, street, direction) {
     //console.log("Processing spot:", spot.spotID);
 
     const existingParkingspotRef = db
-      .collection(street.toLowerCase())
-      .doc(direction)
-      .collection("parkingspots")
+      .collection(direction)
       .where("spotID", "==", parseInt(spot.spotID));
 
     const existingParkSnapshot = await existingParkingspotRef.get();
 
     if (existingParkSnapshot.empty) {
       console.error(
-        `Parking spot ${spot.spotID} not found in ${street}/${direction}`
+        `Parking spot ${spot.spotID} not found in}/${direction}`
       );
       continue;
     }
@@ -433,6 +465,8 @@ async function compareCandidates(allCandidates, registeredCars) {
     }
   });
 
+  console.log("candidates to be updated", candidates)
+
   return candidates; // Return the best-matching parking spots for each registered car
 }
 
@@ -454,16 +488,15 @@ async function findCandidateSpots(oldLat, oldLng, newLat, newLng, street) {
   //Get the overall car direction to decide which collection to query.
   let direction;
   if (latDiff > lngDiff) {
-    direction = newLat > oldLat ? "northern" : "southern";
+    direction = newLat > oldLat ? "northernParkingSpots" : "southernParkingSpots";
   } else {
-    direction = newLng > oldLng ? "eastern" : "western";
+    direction = newLng > oldLng ? "easternParkingSpots" : "westernParkingSpots";
   }
 
   // Fetch parking spots from Firestore
-  const parkingSpotsRef = db
-    .collection(street.toLowerCase())
-    .doc(direction)
-    .collection("parkingspots");
+  const parkingSpotsRef = db.collection(direction)
+  console.log("FirebaseCollection", direction)
+    
   const parkingSpotsSnapshot = await parkingSpotsRef.get();
 
   if (parkingSpotsSnapshot.empty) {
@@ -651,7 +684,6 @@ async function googleGeocode(lat, lng) {
     return null;
   }
 }
-
 
 // Start the server
 app.listen(port, () => {
