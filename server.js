@@ -68,6 +68,9 @@ app.get("/getParkingspots", async (req, res) => {
     let easternSpots = []; // Initialize outside loop to return
     let westernSpots = []; // Initialize outside loop to return
 
+    let oldCoords = [];
+    let newCoords = [];
+
     for (const collectionRef of collections) {
       const streetName = collectionRef.id; // Street name as collection ID
       let streetData = {
@@ -150,6 +153,26 @@ app.get("/getParkingspots", async (req, res) => {
       }
 
       parkingSpots[streetName] = streetData; // Store data per street
+    }
+    // Fetch start coords
+    const oldCollectionRef = db.collection("oldCoords");
+    const oldCoordsSnapshot = await oldCollectionRef.get();
+
+    if (!oldCoordsSnapshot.empty) {
+      oldCoordsSnapshot.docs.forEach((startCoord) => {
+        const coordsData = startCoord.data();
+        oldCoords.push({ lat: coordsData.lat, lng: coordsData.lng });
+      });
+    }
+    // Fetch end coords
+    const newCollectionRef = db.collection("newCoords");
+    const newCoordsSnapshot = await newCollectionRef.get();
+
+    if (!newCoordsSnapshot.empty) {
+      newCoordsSnapshot.docs.forEach((endCoord) => {
+        const coordsData = endCoord.data();
+        newCoords.push({ lat: coordsData.lat, lng: coordsData.lng });
+      });
     }
 
     // Fetch registered cars
@@ -239,6 +262,8 @@ app.get("/getParkingspots", async (req, res) => {
       southernSpots,
       easternSpots,
       westernSpots,
+      oldCoords,
+      newCoords,
     }); // Now returning both
   } catch (error) {
     console.error("Error fetching parking spots:", error);
@@ -260,6 +285,25 @@ async function uploadRegisteredCars(registeredCars) {
     console.log("Successfully uploaded registered cars.");
   } else {
     console.log("No registered cars to upload.");
+  }
+}
+
+async function uploadOldAndNewCoords(oldLat, oldLng, newLat, newLng) {
+  const batch = db.batch(); // Create a batch operation
+  const oldCollectionRef = db.collection("oldCoords"); // Define collection reference
+  const newCollectionRef = db.collection("newCoords"); // Define collection reference
+
+  if (oldLat && oldLng && newLat && newLng) {
+    const oldDocRef = oldCollectionRef.doc();
+    batch.set(oldDocRef, { lat: oldLat, lng: oldLng });
+
+    const newDocRef = newCollectionRef.doc();
+    batch.set(newDocRef, { lat: newLat, lng: newLng });
+
+    await batch.commit(); // Commit the batch operation
+    console.log("Successfully uploaded old + new coords.");
+  } else {
+    console.log("No old or new coords to upload.");
   }
 }
 
@@ -295,6 +339,7 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
     // **Call Map Matching API to get corrected coordinates**
 
     uploadRegisteredCars(registeredCars);
+    uploadOldAndNewCoords(oldLat, oldLng, newLat, newLng);
 
     const result = await mapMatchingAPI(
       oldLat,
@@ -334,7 +379,7 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
     // Matches registered cars with the closest available parking spot within a 10m threshold.
     if (candidateCars.length > 0) {
       const parkedCars = await compareCandidates(candidateCars, registeredCars);
-      
+
       //console.log("mapMatched parkedCars", parkedCars);
 
       // Pass direction to update the correct Firestore subcollection
@@ -398,9 +443,7 @@ async function updateSpotsInFirestore(spots, isOccupied, street, direction) {
     const existingParkSnapshot = await existingParkingspotRef.get();
 
     if (existingParkSnapshot.empty) {
-      console.error(
-        `Parking spot ${spot.spotID} not found in}/${direction}`
-      );
+      console.error(`Parking spot ${spot.spotID} not found in}/${direction}`);
       continue;
     }
 
@@ -465,7 +508,7 @@ async function compareCandidates(allCandidates, registeredCars) {
     }
   });
 
-  console.log("candidates to be updated", candidates)
+  console.log("candidates to be updated", candidates);
 
   return candidates; // Return the best-matching parking spots for each registered car
 }
@@ -488,15 +531,16 @@ async function findCandidateSpots(oldLat, oldLng, newLat, newLng, street) {
   //Get the overall car direction to decide which collection to query.
   let direction;
   if (latDiff > lngDiff) {
-    direction = newLat > oldLat ? "northernParkingSpots" : "southernParkingSpots";
+    direction =
+      newLat > oldLat ? "northernParkingSpots" : "southernParkingSpots";
   } else {
     direction = newLng > oldLng ? "easternParkingSpots" : "westernParkingSpots";
   }
 
   // Fetch parking spots from Firestore
-  const parkingSpotsRef = db.collection(direction)
-  console.log("FirebaseCollection", direction)
-    
+  const parkingSpotsRef = db.collection(direction);
+  console.log("FirebaseCollection", direction);
+
   const parkingSpotsSnapshot = await parkingSpotsRef.get();
 
   if (parkingSpotsSnapshot.empty) {
