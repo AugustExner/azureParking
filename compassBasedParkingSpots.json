@@ -1,5 +1,6 @@
 {
-    "northernParkingSpots": [
+    "directions": {
+      "1": [
         {
             "spotID": 1,
             "latitude": 56.173561,
@@ -34,7 +35,7 @@
             "spotID": 6,
             "latitude": 56.173342,
             "longitude": 10.188527,
-            "occupied": false
+            "occipied": false
         },
         {
             "spotID": 7,
@@ -162,11 +163,10 @@
             "longitude": 10.18792509466407,
             "occupied": false
         }
-    ],
-    "southernParkingSpots": [
-        {
-            "spotID": 78,
-            "latitude": 56.173574,
+      ],
+      "19" : [
+        {   "spotID" : 78,
+            "latitude": 56.173574, 
             "longitude": 10.188481,
             "occupied": false
         },
@@ -284,194 +284,196 @@
             "longitude": 10.190913378146616,
             "occupied": false
         }
-    ],
-    
-    "westernParkingSpots": [
-        {
-            "spotID": 28,
-            "latitude": 56.17180589206675,
-            "longitude": 10.188048976903495,
-            "occupied": false
-        },
-        {
-            "spotID": 29,
-            "latitude": 56.17179202556745,
-            "longitude": 10.188125812271059,
-            "occupied": false
-        },
-        {
-            "spotID": 30,
-            "latitude": 56.17177815906814,
-            "longitude": 10.18820264763862,
-            "occupied": false
-        },
-        {
-            "spotID": 31,
-            "latitude": 56.17176429256883,
-            "longitude": 10.188279483006184,
-            "occupied": false
-        },
-        {
-            "spotID": 32,
-            "latitude": 56.17175042606952,
-            "longitude": 10.188356318373748,
-            "occupied": false
-        },
-        {
-            "spotID": 33,
-            "latitude": 56.17173655957022,
-            "longitude": 10.188433153741311,
-            "occupied": false
-        },
-        {
-            "spotID": 34,
-            "latitude": 56.17169263662395,
-            "longitude": 10.188718699609797,
-            "occupied": false
-        },
-        {
-            "spotID": 35,
-            "latitude": 56.17167954386968,
-            "longitude": 10.18879597145612,
-            "occupied": false
-        },
-        {
-            "spotID": 36,
-            "latitude": 56.17166645111541,
-            "longitude": 10.18887324330244,
-            "occupied": false
-        },
-        {
-            "spotID": 37,
-            "latitude": 56.171653358361134,
-            "longitude": 10.188950515148761,
-            "occupied": false
-        },
-        {
-            "spotID": 38,
-            "latitude": 56.17164026560686,
-            "longitude": 10.189027786995084,
-            "occupied": false
-        },
-        {
-            "spotID": 39,
-            "latitude": 56.17162717285259,
-            "longitude": 10.189105058841404,
-            "occupied": false
-        },
-        {
-            "spotID": 40,
-            "latitude": 56.171614080098315,
-            "longitude": 10.189182330687725,
-            "occupied": false
-        },
-        {
-            "spotID": 41,
-            "latitude": 56.17160098734404,
-            "longitude": 10.189259602534047,
-            "occupied": false
-        },
-        {
-            "spotID": 42,
-            "latitude": 56.17158789458976,
-            "longitude": 10.189336874380368,
-            "occupied": false
-        },
-        {
-            "spotID": 43,
-            "latitude": 56.17146197333991,
-            "longitude": 10.190105304830995,
-            "occupied": false
-        },
-        {
-            "spotID": 44,
-            "latitude": 56.171474810193885,
-            "longitude": 10.190027894877188,
-            "occupied": false
-        },
-        {
-            "spotID": 45,
-            "latitude": 56.171487647047854,
-            "longitude": 10.18995048492338,
-            "occupied": false
-        },
-        {
-            "spotID": 46,
-            "latitude": 56.17150048390182,
-            "longitude": 10.189873074969572,
-            "occupied": false
-        },
-        {
-            "spotID": 47,
-            "latitude": 56.1715133207558,
-            "longitude": 10.189795665015765,
-            "occupied": false
-        },
-        {
-            "spotID": 48,
-            "latitude": 56.17152615760977,
-            "longitude": 10.189718255061958,
-            "occupied": false
-        },
-        {
-            "spotID": 68,
-            "latitude": 56.17341096715388,
-            "longitude": 10.19081508253264,
-            "occupied": false
-        },
-        {
-            "spotID": 69,
-            "latitude": 56.17342473369242,
-            "longitude": 10.190738185889874,
-            "occupied": false
-        },
-        {
-            "spotID": 70,
-            "latitude": 56.17343850023096,
-            "longitude": 10.190661289247107,
-            "occupied": false
-        },
-        {
-            "spotID": 71,
-            "latitude": 56.17348349644321,
-            "longitude": 10.190394438875593,
-            "occupied": false
-        },
-        {
-            "spotID": 72,
-            "latitude": 56.17349645569842,
-            "longitude": 10.19031709071898,
-            "occupied": false
-        },
-        {
-            "spotID": 73,
-            "latitude": 56.17350941495363,
-            "longitude": 10.190239742562364,
-            "occupied": false
-        },
-        {
-            "spotID": 74,
-            "latitude": 56.17361043758221,
-            "longitude": 10.189630134947292,
-            "occupied": false
-        },
-        {
-            "spotID": 75,
-            "latitude": 56.17362665257432,
-            "longitude": 10.189554793938056,
-            "occupied": false
-        },
-        {
-            "spotID": 76,
-            "latitude": 56.173684999783276,
-            "longitude": 10.189179394142084,
-            "occupied": false
-        },
-        {
-            "spotID": 77,
-            "latitude": 56.173695940443594,
-            "longitude": 10.189101045689888,
-            "occupied": false
-        }
-    ]
-}
+        
+      ],
+      "29": [    
+            {
+                "spotID": 68,
+                "latitude": 56.17341096715388,
+                "longitude": 10.19081508253264,
+                "occupied": false
+            },
+            {
+                "spotID": 69,
+                "latitude": 56.17342473369242,
+                "longitude": 10.190738185889874,
+                "occupied": false
+            },
+            {
+                "spotID": 70,
+                "latitude": 56.17343850023096,
+                "longitude": 10.190661289247107,
+                "occupied": false
+            },
+            {
+                "spotID": 71,
+                "latitude": 56.17348349644321,
+                "longitude": 10.190394438875593,
+                "occupied": false
+            },
+            {
+                "spotID": 72,
+                "latitude": 56.17349645569842,
+                "longitude": 10.19031709071898,
+                "occupied": false
+            },
+            {
+                "spotID": 73,
+                "latitude": 56.17350941495363,
+                "longitude": 10.190239742562364,
+                "occupied": false
+            },
+            {
+                "spotID": 74,
+                "latitude": 56.17361043758221,
+                "longitude": 10.189630134947292,
+                "occupied": false
+            },
+            {
+                "spotID": 75,
+                "latitude": 56.17362665257432,
+                "longitude": 10.189554793938056,
+                "occupied": false
+            },
+            {
+                "spotID": 76,
+                "latitude": 56.173684999783276,
+                "longitude": 10.189179394142084,
+                "occupied": false
+            },
+            {
+                "spotID": 77,
+                "latitude": 56.173695940443594,
+                "longitude": 10.189101045689888,
+                "occupied": false
+            },
+            {
+                "spotID": 28,
+                "latitude": 56.17180589206675,
+                "longitude": 10.188048976903495,
+                "occupied": false
+            },
+            {
+                "spotID": 29,
+                "latitude": 56.17179202556745,
+                "longitude": 10.188125812271059,
+                "occupied": false
+            },
+            {
+                "spotID": 30,
+                "latitude": 56.17177815906814,
+                "longitude": 10.18820264763862,
+                "occupied": false
+            },
+            {
+                "spotID": 31,
+                "latitude": 56.17176429256883,
+                "longitude": 10.188279483006184,
+                "occupied": false
+            },
+            {
+                "spotID": 32,
+                "latitude": 56.17175042606952,
+                "longitude": 10.188356318373748,
+                "occupied": false
+            },
+            {
+                "spotID": 33,
+                "latitude": 56.17173655957022,
+                "longitude": 10.188433153741311,
+                "occupied": false
+            },
+            {
+                "spotID": 34,
+                "latitude": 56.17169263662395,
+                "longitude": 10.188718699609797,
+                "occupied": false
+            },
+            {
+                "spotID": 35,
+                "latitude": 56.17167954386968,
+                "longitude": 10.18879597145612,
+                "occupied": false
+            },
+            {
+                "spotID": 36,
+                "latitude": 56.17166645111541,
+                "longitude": 10.18887324330244,
+                "occupied": false
+            },
+            {
+                "spotID": 37,
+                "latitude": 56.171653358361134,
+                "longitude": 10.188950515148761,
+                "occupied": false
+            },
+            {
+                "spotID": 38,
+                "latitude": 56.17164026560686,
+                "longitude": 10.189027786995084,
+                "occupied": false
+            },
+            {
+                "spotID": 39,
+                "latitude": 56.17162717285259,
+                "longitude": 10.189105058841404,
+                "occupied": false
+            },
+            {
+                "spotID": 40,
+                "latitude": 56.171614080098315,
+                "longitude": 10.189182330687725,
+                "occupied": false
+            },
+            {
+                "spotID": 41,
+                "latitude": 56.17160098734404,
+                "longitude": 10.189259602534047,
+                "occupied": false
+            },
+            {
+                "spotID": 42,
+                "latitude": 56.17158789458976,
+                "longitude": 10.189336874380368,
+                "occupied": false
+            },
+            {
+                "spotID": 43,
+                "latitude": 56.17146197333991,
+                "longitude": 10.190105304830995,
+                "occupied": false
+            },
+            {
+                "spotID": 44,
+                "latitude": 56.171474810193885,
+                "longitude": 10.190027894877188,
+                "occupied": false
+            },
+            {
+                "spotID": 45,
+                "latitude": 56.171487647047854,
+                "longitude": 10.18995048492338,
+                "occupied": false
+            },
+            {
+                "spotID": 46,
+                "latitude": 56.17150048390182,
+                "longitude": 10.189873074969572,
+                "occupied": false
+            },
+            {
+                "spotID": 47,
+                "latitude": 56.1715133207558,
+                "longitude": 10.189795665015765,
+                "occupied": false
+            },
+            {
+                "spotID": 48,
+                "latitude": 56.17152615760977,
+                "longitude": 10.189718255061958,
+                "occupied": false
+            }
+      ]
+    }
+  }
+  
