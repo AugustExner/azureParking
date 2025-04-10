@@ -35,11 +35,14 @@ app.get("/", (req, res) => {
 // POST request to upload parking spots from JSON file to Firestore
 app.post("/uploadParkingspots", async (req, res) => {
   try {
-    const data = fs.readFileSync("directionBasedParkingSpots.json", "utf8");
+    const data = fs.readFileSync("compassBasedParkingSpots.json", "utf8");
     const parkingData = JSON.parse(data);
+directions = parkingData.directions
+
     const batch = db.batch();
 
-    Object.entries(parkingData).forEach(([direction, spots]) => {
+    Object.entries(directions).forEach(([direction, spots]) => {
+      console.log(direction)
       spots.forEach((spot) => {
         const spotRef = db
           .collection(direction) // Collection named after direction (e.g., "northernParkingSpots")
@@ -60,216 +63,102 @@ app.post("/uploadParkingspots", async (req, res) => {
 app.get("/getParkingspots", async (req, res) => {
   try {
     const collections = await db.listCollections();
-    let parkingSpots = {};
-    let registeredCarsData = []; // Initialize outside loop to return
+    const parkingSpots = {};
+    const registeredCarsData = [];
+    const compass1 = [];
+    const compass19 = [];
+    const compass29 = [];
 
-    let northernSpots = []; // Initialize outside loop to return
-    let southernSpots = []; // Initialize outside loop to return
-    let easternSpots = []; // Initialize outside loop to return
-    let westernSpots = []; // Initialize outside loop to return
+    const oldCoords = [];
+    const newCoords = [];
 
-    let oldCoords = [];
-    let newCoords = [];
+    // Helper to fetch spot data
+    const fetchSpotData = async (collectionName) => {
+      const snapshot = await db.collection(collectionName).get();
+      if (!snapshot.empty) {
+        return snapshot.docs.map((doc) => doc.data());
+      }
+      return [];
+    };
 
+    // Fetch all collections
     for (const collectionRef of collections) {
-      const streetName = collectionRef.id; // Street name as collection ID
-      let streetData = {
-        southernParkingspots: [],
-        northernParkingspots: [],
-        easternParkingspots: [],
-        westernParkingspots: [],
-      };
+      const collectionName = collectionRef.id;
 
-      // Fetch southern parking spots
-      const southernDocRef = db.collection(streetName).doc("southern");
-      const southernSnapshot = await southernDocRef
-        .collection("parkingspots")
-        .get();
-
-      if (!southernSnapshot.empty) {
-        southernSnapshot.docs.forEach((doc) => {
-          const spotData = doc.data();
-          streetData.southernParkingspots.push({
-            spotID: spotData.spotID,
-            latitude: spotData.latitude,
-            longitude: spotData.longitude,
-            occupied: spotData.occupied,
-          });
-        });
+      // Fetch spots for compass "1"
+      if (collectionName === "1") {
+        const spots = await fetchSpotData("1");
+        compass1.push(
+          ...spots.map((spot) => ({
+            latitude: spot.latitude,
+            longitude: spot.longitude,
+            occupied: spot.occupied,
+            spotID: spot.spotID,
+          }))
+        );
       }
 
-      // Fetch northern parking spots
-      const northernDocRef = db.collection(streetName).doc("northern");
-      const northernSnapshot = await northernDocRef
-        .collection("parkingspots")
-        .get();
-
-      if (!northernSnapshot.empty) {
-        northernSnapshot.docs.forEach((doc) => {
-          const spotData = doc.data();
-          streetData.northernParkingspots.push({
-            spotID: spotData.spotID,
-            latitude: spotData.latitude,
-            longitude: spotData.longitude,
-            occupied: spotData.occupied,
-          });
-        });
+      // Fetch spots for compass "19"
+      if (collectionName === "19") {
+        const spots = await fetchSpotData("19");
+        compass19.push(
+          ...spots.map((spot) => ({
+            latitude: spot.latitude,
+            longitude: spot.longitude,
+            occupied: spot.occupied,
+            spotID: spot.spotID,
+          }))
+        );
       }
 
-      // Fetch eastern parking spots
-      const easternDocRef = db.collection(streetName).doc("eastern");
-      const easternSnapshot = await easternDocRef
-        .collection("parkingspots")
-        .get();
-
-      if (!easternSnapshot.empty) {
-        easternSnapshot.docs.forEach((doc) => {
-          const spotData = doc.data();
-          streetData.easternParkingspots.push({
-            spotID: spotData.spotID,
-            latitude: spotData.latitude,
-            longitude: spotData.longitude,
-            occupied: spotData.occupied,
-          });
-        });
+      // Fetch spots for compass "29"
+      if (collectionName === "29") {
+        const spots = await fetchSpotData("29");
+        compass29.push(
+          ...spots.map((spot) => ({
+            latitude: spot.latitude,
+            longitude: spot.longitude,
+            occupied: spot.occupied,
+            spotID: spot.spotID,
+          }))
+        );
       }
-
-      // Fetch western parking spots
-      const westernDocRef = db.collection(streetName).doc("western");
-      const westernSnapshot = await westernDocRef
-        .collection("parkingspots")
-        .get();
-
-      if (!westernSnapshot.empty) {
-        westernSnapshot.docs.forEach((doc) => {
-          const spotData = doc.data();
-          streetData.westernParkingspots.push({
-            spotID: spotData.spotID,
-            latitude: spotData.latitude,
-            longitude: spotData.longitude,
-            occupied: spotData.occupied,
-          });
-        });
-      }
-
-      parkingSpots[streetName] = streetData; // Store data per street
     }
-    // Fetch start coords
-    const oldCollectionRef = db.collection("oldCoords");
-    const oldCoordsSnapshot = await oldCollectionRef.get();
 
-    if (!oldCoordsSnapshot.empty) {
-      oldCoordsSnapshot.docs.forEach((startCoord) => {
-        const coordsData = startCoord.data();
-        oldCoords.push({ lat: coordsData.lat, lng: coordsData.lng });
-      });
-    }
-    // Fetch end coords
-    const newCollectionRef = db.collection("newCoords");
-    const newCoordsSnapshot = await newCollectionRef.get();
+    // Fetch start coordinates
+    const oldCoordsDocs = await fetchSpotData("oldCoords");
+    oldCoords.push(...oldCoordsDocs.map((coords) => ({ lat: coords.lat, lng: coords.lng })));
 
-    if (!newCoordsSnapshot.empty) {
-      newCoordsSnapshot.docs.forEach((endCoord) => {
-        const coordsData = endCoord.data();
-        newCoords.push({ lat: coordsData.lat, lng: coordsData.lng });
-      });
-    }
+    // Fetch end coordinates
+    const newCoordsDocs = await fetchSpotData("newCoords");
+    newCoords.push(...newCoordsDocs.map((coords) => ({ lat: coords.lat, lng: coords.lng })));
 
     // Fetch registered cars
-    const registeredCarRef = db.collection("registeredCars");
-    const registeredCarSnapshot = await registeredCarRef.get();
-
-    if (!registeredCarSnapshot.empty) {
-      registeredCarSnapshot.docs.forEach((car) => {
-        const carData = car.data();
-        registeredCarsData.push({
-          oldLat: carData.oldLat,
-          oldLng: carData.oldLng,
-          newLat: carData.newLat,
-          newLng: carData.newLng,
-        });
-      });
-    }
-
-    // Fetch north going cars
-    const northCarRef = db.collection("northernParkingSpots");
-    const northCarSnapshot = await northCarRef.get();
-
-    if (!northCarSnapshot.empty) {
-      northCarSnapshot.docs.forEach((spot) => {
-        const spotData = spot.data();
-        northernSpots.push({
-          latitude: spotData.latitude,
-          longitude: spotData.longitude,
-          occupied: spotData.occupied,
-          spotID: spotData.spotID,
-        });
-      });
-    }
-
-    // Fetch south going cars
-    const southCarRef = db.collection("southernParkingSpots");
-    const southCarSnapshot = await southCarRef.get();
-
-    if (!southCarSnapshot.empty) {
-      southCarSnapshot.docs.forEach((spot) => {
-        const spotData = spot.data();
-        southernSpots.push({
-          latitude: spotData.latitude,
-          longitude: spotData.longitude,
-          occupied: spotData.occupied,
-          spotID: spotData.spotID,
-        });
-      });
-    }
-
-    // Fetch east going cars
-    const eastCarRef = db.collection("easternParkingSpots");
-    const eastCarSnapshot = await eastCarRef.get();
-
-    if (!eastCarSnapshot.empty) {
-      eastCarSnapshot.docs.forEach((spot) => {
-        const spotData = spot.data();
-        easternSpots.push({
-          latitude: spotData.latitude,
-          longitude: spotData.longitude,
-          occupied: spotData.occupied,
-          spotID: spotData.spotID,
-        });
-      });
-    }
-
-    // Fetch west going cars
-    const westCarRef = db.collection("westernParkingSpots");
-    const westCarSnapshot = await westCarRef.get();
-
-    if (!westCarSnapshot.empty) {
-      westCarSnapshot.docs.forEach((spot) => {
-        const spotData = spot.data();
-        westernSpots.push({
-          latitude: spotData.latitude,
-          longitude: spotData.longitude,
-          occupied: spotData.occupied,
-          spotID: spotData.spotID,
-        });
-      });
-    }
+    const registeredCars = await fetchSpotData("registeredCars");
+    registeredCarsData.push(
+      ...registeredCars.map((car) => ({
+        oldLat: car.oldLat,
+        oldLng: car.oldLng,
+        newLat: car.newLat,
+        newLng: car.newLng,
+      }))
+    );
 
     res.json({
       parkingSpots,
       registeredCarsData,
-      northernSpots,
-      southernSpots,
-      easternSpots,
-      westernSpots,
       oldCoords,
       newCoords,
-    }); // Now returning both
+      compass1,
+      compass19,
+      compass29,
+    });
   } catch (error) {
     console.error("Error fetching parking spots:", error);
     res.status(500).json({ error: "Failed to retrieve parking spots" });
   }
 });
+
 
 async function uploadRegisteredCars(registeredCars) {
   const batch = db.batch(); // Create a batch operation
@@ -326,14 +215,19 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
     newLng
   );
 
+  
+let heading = getRunwayHeading(oldLat, oldLng, newLat, newLng);
+console.log(`Runway-style heading:`, heading); 
+
+
   // Print the validated values
-  console.log("Validated fields:");
-  console.log("oldLat:", oldLat);
-  console.log("oldLng:", oldLng);
-  console.log("newLat:", newLat);
-  console.log("newLng:", newLng);
-  console.log("Distance", distanceDriven);
-  console.log("street:", street);
+  // console.log("Validated fields:");
+  // console.log("oldLat:", oldLat);
+  // console.log("oldLng:", oldLng);
+  // console.log("newLat:", newLat);
+  // console.log("newLng:", newLng);
+  // console.log("Distance", distanceDriven);
+  // console.log("street:", street);
 
   try {
     // **Call Map Matching API to get corrected coordinates**
@@ -361,7 +255,8 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
       snappedDirection.oldLng,
       snappedDirection.newLat,
       snappedDirection.newLng,
-      street.toLowerCase()
+      street.toLowerCase(),
+      heading
     );
 
     console.log("findcandidateSpots Direction:", direction);
@@ -513,8 +408,10 @@ async function compareCandidates(allCandidates, registeredCars) {
   return candidates; // Return the best-matching parking spots for each registered car
 }
 
-async function findCandidateSpots(oldLat, oldLng, newLat, newLng, street) {
+async function findCandidateSpots(oldLat, oldLng, newLat, newLng, street, heading) {
   const candidateSpots = [];
+
+  console.log("findCandidateSpots", heading)
 
   // Calculate driven distance
   const drivenDistance = getDistanceFromLatLonInKm(
@@ -528,14 +425,9 @@ async function findCandidateSpots(oldLat, oldLng, newLat, newLng, street) {
   const latDiff = Math.abs(newLat - oldLat); // 1 for positive, -1 for negative
   const lngDiff = Math.abs(newLng - oldLng);
 
-  //Get the overall car direction to decide which collection to query.
-  let direction;
-  if (latDiff > lngDiff) {
-    direction =
-      newLat > oldLat ? "northernParkingSpots" : "southernParkingSpots";
-  } else {
-    direction = newLng > oldLng ? "easternParkingSpots" : "westernParkingSpots";
-  }
+
+  let direction = heading.toString()
+  console.log("directionString", direction)
 
   // Fetch parking spots from Firestore
   const parkingSpotsRef = db.collection(direction);
@@ -728,6 +620,34 @@ async function googleGeocode(lat, lng) {
     return null;
   }
 }
+
+//Function to calculate direction Similar to a Runway.
+function getRunwayHeading(lat1, lon1, lat2, lon2) {
+  const toRadians = (deg) => (deg * Math.PI) / 180;
+  const toDegrees = (rad) => (rad * 180) / Math.PI;
+
+  const φ1 = toRadians(lat1);
+  const φ2 = toRadians(lat2);
+  const Δλ = toRadians(lon2 - lon1);
+
+  const y = Math.sin(Δλ) * Math.cos(φ2);
+  const x =
+    Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+
+  let θ = toDegrees(Math.atan2(y, x));
+  θ = (θ + 360) % 360; // Normalize to 0–360
+
+  const roundedBearing = (Math.round(θ / 10) * 10) % 360;
+  const runwayHeading = Math.floor(roundedBearing / 10);
+
+  return runwayHeading;
+}
+
+function getOppositeRunway(heading) {
+  console.log("heading", heading);
+  return (heading + 18) % 36;
+}
+
 
 // Start the server
 app.listen(port, () => {
