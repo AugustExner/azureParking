@@ -206,7 +206,7 @@ app.get("/getParkingspots", async (req, res) => {
         });
       });
     }
-
+    console.log("direction-based");
     // Fetch south going cars
     const southCarRef = db.collection("southernParkingSpots");
     const southCarSnapshot = await southCarRef.get();
