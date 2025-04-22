@@ -60,6 +60,25 @@ directions = parkingData.directions
   }
 });
 
+app.get("/getDetectedCars", async (req, res) => {
+  try {
+    const snapshot = await db.collection("detectedCars").get();
+
+    const detectedCars = [];
+    snapshot.forEach((doc) => {
+      detectedCars.push({ id: doc.id, ...doc.data() });
+    });
+
+    res.json({ detectedCars });
+  } catch (error) {
+    res.status(500).json({ 
+      error: "Failed to fetch detected cars", 
+      details: error.message 
+    });
+  }
+});
+
+
 app.get("/getParkingspots", async (req, res) => {
   try {
     const collections = await db.listCollections();
@@ -160,6 +179,24 @@ app.get("/getParkingspots", async (req, res) => {
 });
 
 
+async function uploadDetectedCars(detectedCars) {
+  const batch = db.batch();
+  const collectionRef = db.collection("detectedCars");
+
+  if (detectedCars.length > 0) {
+    detectedCars.forEach((car) => {
+      const docRef = collectionRef.doc(); // Unique doc for each car
+      batch.set(docRef, car);
+    });
+
+    await batch.commit();
+    console.log("Successfully uploaded detectedCars.");
+  } else {
+    console.log("No detectedCars to upload.");
+  }
+}
+
+
 async function uploadRegisteredCars(registeredCars) {
   const batch = db.batch(); // Create a batch operation
   const collectionRef = db.collection("registeredCars"); // Define collection reference
@@ -195,6 +232,28 @@ async function uploadOldAndNewCoords(oldLat, oldLng, newLat, newLng) {
     console.log("No old or new coords to upload.");
   }
 }
+
+app.post("/detection2.0", async (req, res) => {
+  console.log("--------------");
+  console.log("detection");
+
+  const { oldLat, oldLng, newLat, newLng, detectedCars } = req.body;
+
+  // Validate required fields
+  if (!oldLat || !oldLng || !newLat || !newLng || !detectedCars) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+
+  try {
+    await uploadDetectedCars(detectedCars); // Added await
+    res.json({ message: "Detected cars uploaded successfully" });
+  } catch (error) {
+    return res.status(500).json({ 
+      error: "Internal server error", 
+      details: error.message 
+    });
+  }
+});
 
 app.post("/updateMultipleParkingSpots", async (req, res) => {
   console.log("__________________________");

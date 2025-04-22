@@ -19,7 +19,6 @@ class RegisteredCar {
     this.newLat = newLat;
     this.newLng = newLng;
   }
-
 }
 
 class Street {
