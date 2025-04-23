@@ -256,70 +256,24 @@ app.post("/detection2.0", async (req, res) => {
 });
 
 app.post("/updateMultipleParkingSpots", async (req, res) => {
-  console.log("__________________________");
-  console.log("UpdateMultipleParkingSpots");
+  const { oldLat, oldLng, newLat, newLng, registeredCars } = req.body;
 
-  const { oldLat, oldLng, newLat, newLng, registeredCars, street } = req.body;
+  //Array to store candidate spots
   var candidateCars = [];
 
   // Validate required fields
-  if (!oldLat || !oldLng || !newLat || !newLng || !street || !registeredCars) {
+  if (!oldLat || !oldLng || !newLat || !newLng || !registeredCars) {
     return res.status(400).json({ error: "Missing required fields" });
   }
-
-  const distanceDriven = getDistanceFromLatLonInKm(
-    oldLat,
-    oldLng,
-    newLat,
-    newLng
-  );
-
   
 let heading = getRunwayHeading(oldLat, oldLng, newLat, newLng);
-console.log(`Runway-style heading:`, heading); 
+console.log("heading", heading)
 
-
-  // Print the validated values
-  // console.log("Validated fields:");
-  // console.log("oldLat:", oldLat);
-  // console.log("oldLng:", oldLng);
-  // console.log("newLat:", newLat);
-  // console.log("newLng:", newLng);
-  // console.log("Distance", distanceDriven);
-  // console.log("street:", street);
 
   try {
-    // **Call Map Matching API to get corrected coordinates**
-
-    uploadRegisteredCars(registeredCars);
-    uploadOldAndNewCoords(oldLat, oldLng, newLat, newLng);
-
-    const result = await mapMatchingAPI(
-      oldLat,
-      oldLng,
-      newLat,
-      newLng,
-      registeredCars
-    );
-
-    if (!result) {
-      return res.status(500).json({ error: "Map Matching failed" });
-    }
-
-    const { snappedDirection, snappedCars } = result;
-
-    // Finds available parking spots based on the car's movement and queries the Firestore database accordingly.
-    const { candidateSpots, direction } = await findCandidateSpots(
-      snappedDirection.oldLat,
-      snappedDirection.oldLng,
-      snappedDirection.newLat,
-      snappedDirection.newLng,
-      street.toLowerCase(),
-      heading
-    );
-
-    console.log("findcandidateSpots Direction:", direction);
-
+    // Finds candidate spots based on the car's direction .
+    const { candidateSpots, direction } = await findCandidateSpots(oldLat, oldLng, newLat, newLng, heading);
+    
     // Convert to ParkingSpot objects
     candidateCars = candidateSpots.map(
       (spot) =>
@@ -330,16 +284,14 @@ console.log(`Runway-style heading:`, heading);
           spot.occupied
         )
     );
-    // Matches registered cars with the closest available parking spot within a 10m threshold.
+
+    // Matches registered cars with the closest candidateSpot spot within a 10m threshold.
     if (candidateCars.length > 0) {
-      const parkedCars = await compareCandidates(candidateCars, registeredCars);
+      const parkedCars = await matchCarsToSpots(candidateCars, registeredCars);
 
-      //console.log("mapMatched parkedCars", parkedCars);
-
-      // Pass direction to update the correct Firestore subcollection
+    // Pass direction to update the correct Firestore subcollection
       await updateParkingStatusOfSpots(
         candidateCars,
-        street,
         parkedCars,
         direction
       );
@@ -359,7 +311,6 @@ console.log(`Runway-style heading:`, heading);
 
 async function updateParkingStatusOfSpots(
   candidatespots,
-  street,
   registeredCars,
   direction
 ) {
@@ -370,11 +321,11 @@ async function updateParkingStatusOfSpots(
     // console.log("Direction:", direction);
 
     if (candidatespots.length > 0) {
-      await updateSpotsInFirestore(candidatespots, false, street, direction);
+      await updateSpotsInFirestore(candidatespots, false, direction);
     }
 
     if (registeredCars.length > 0) {
-      await updateSpotsInFirestore(registeredCars, true, street, direction);
+      await updateSpotsInFirestore(registeredCars, true, direction);
     }
 
     return { message: "Parking status updated successfully" };
@@ -384,7 +335,7 @@ async function updateParkingStatusOfSpots(
   }
 }
 
-async function updateSpotsInFirestore(spots, isOccupied, street, direction) {
+async function updateSpotsInFirestore(spots, isOccupied, direction) {
   //console.log("Updating Firestore for direction:", direction);
 
   for (const spot of spots) {
@@ -414,7 +365,7 @@ async function updateSpotsInFirestore(spots, isOccupied, street, direction) {
   }
 }
 
-async function compareCandidates(allCandidates, registeredCars) {
+async function matchCarsToSpots(allCandidates, registeredCars) {
   var candidates = [];
   let threshold = 0.01; // Threshold for matching (10 meters)
 
@@ -434,7 +385,7 @@ async function compareCandidates(allCandidates, registeredCars) {
 
     // Iterate over all candidate parking spots to find the closest match
     allCandidates.forEach((candidate, index) => {
-      var currentDistance = getDistanceFromLatLonInKm(
+      var currentDistance = getDistanceFromLatLngInKm(
         registeredCarTarget.targetLat,
         registeredCarTarget.targetLng,
         candidate.latitude,
@@ -467,47 +418,39 @@ async function compareCandidates(allCandidates, registeredCars) {
   return candidates; // Return the best-matching parking spots for each registered car
 }
 
-async function findCandidateSpots(oldLat, oldLng, newLat, newLng, street, heading) {
+async function findCandidateSpots(oldLat, oldLng, newLat, newLng, heading) {
   const candidateSpots = [];
 
-  console.log("findCandidateSpots", heading)
-
   // Calculate driven distance
-  const drivenDistance = getDistanceFromLatLonInKm(
+  const drivenDistance = getDistanceFromLatLngInKm(
     oldLat,
     oldLng,
     newLat,
     newLng
   );
 
-  // Determine movement direction
-  const latDiff = Math.abs(newLat - oldLat); // 1 for positive, -1 for negative
-  const lngDiff = Math.abs(newLng - oldLng);
-
-
   let direction = heading.toString()
-  console.log("directionString", direction)
 
-  // Fetch parking spots from Firestore
+  // Fetch parking spots from Firestore based on directin
   const parkingSpotsRef = db.collection(direction);
-  console.log("FirebaseCollection", direction);
-
   const parkingSpotsSnapshot = await parkingSpotsRef.get();
 
+  // Check if collection exists
   if (parkingSpotsSnapshot.empty) {
     return res.status(404).json({ error: "Parking spot not found." });
   }
 
-  // Check each parking spot
+  // Calculate distance from start point to each known parking spot within DB collection.
   parkingSpotsSnapshot.forEach((spot) => {
     const spotData = spot.data();
-    const distanceToSpot = getDistanceFromLatLonInKm(
+    const distanceToSpot = getDistanceFromLatLngInKm(
       oldLat,
       oldLng,
       spotData.latitude,
       spotData.longitude
     );
 
+    //If parkingspots are less or equal to driven distance, add to a list of candidate spots. 
     if (distanceToSpot <= drivenDistance) {
       candidateSpots.push(
         new ParkingSpot(
@@ -519,10 +462,7 @@ async function findCandidateSpots(oldLat, oldLng, newLat, newLng, street, headin
       );
     }
   });
-  console.log("CandidateSpots: " + candidateSpots.length);
-  console.log("-----------------");
-  console.log(`Direction: ${direction} at ${street} `);
-
+  
   return { drivenDistance, candidateSpots, direction };
 }
 
@@ -540,7 +480,7 @@ function isSpotInDrivenDirection(
   );
 }
 
-function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
+function getDistanceFromLatLngInKm(lat1, lon1, lat2, lon2) {
   var R = 6371; // Radius of the earth in km
   var dLat = deg2rad(lat2 - lat1); // deg2rad below
   var dLon = deg2rad(lon2 - lon1);
