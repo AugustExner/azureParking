@@ -443,6 +443,7 @@ async function matchCarsToSpots(allCandidates, registeredCars) {
 }
 
 async function matchCarsToSpots2(allCandidates, detectedCars) {
+  console.log("matchCarsToSpots2")
   var candidates = [];
   let threshold = 0.01; // Threshold for matching (10 meters)
 
@@ -498,6 +499,7 @@ async function findCandidateSpots(oldLat, oldLng, newLat, newLng) {
 
   // Get the Runway heading to lookup in Firestore
   let direction = getRunwayHeading(oldLat, oldLng, newLat, newLng);
+  console.log("direction", direction)
 
   // Fetch parking spots from Firestore based on directin
   const parkingSpotsRef = db.collection(direction);
