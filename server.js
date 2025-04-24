@@ -37,12 +37,12 @@ app.post("/uploadParkingspots", async (req, res) => {
   try {
     const data = fs.readFileSync("compassBasedParkingSpots.json", "utf8");
     const parkingData = JSON.parse(data);
-directions = parkingData.directions
+    directions = parkingData.directions;
 
     const batch = db.batch();
 
     Object.entries(directions).forEach(([direction, spots]) => {
-      console.log(direction)
+      console.log(direction);
       spots.forEach((spot) => {
         const spotRef = db
           .collection(direction) // Collection named after direction (e.g., "northernParkingSpots")
@@ -71,13 +71,12 @@ app.get("/getDetectedCars", async (req, res) => {
 
     res.json({ detectedCars });
   } catch (error) {
-    res.status(500).json({ 
-      error: "Failed to fetch detected cars", 
-      details: error.message 
+    res.status(500).json({
+      error: "Failed to fetch detected cars",
+      details: error.message,
     });
   }
 });
-
 
 app.get("/getParkingspots", async (req, res) => {
   try {
@@ -146,11 +145,15 @@ app.get("/getParkingspots", async (req, res) => {
 
     // Fetch start coordinates
     const oldCoordsDocs = await fetchSpotData("oldCoords");
-    oldCoords.push(...oldCoordsDocs.map((coords) => ({ lat: coords.lat, lng: coords.lng })));
+    oldCoords.push(
+      ...oldCoordsDocs.map((coords) => ({ lat: coords.lat, lng: coords.lng }))
+    );
 
     // Fetch end coordinates
     const newCoordsDocs = await fetchSpotData("newCoords");
-    newCoords.push(...newCoordsDocs.map((coords) => ({ lat: coords.lat, lng: coords.lng })));
+    newCoords.push(
+      ...newCoordsDocs.map((coords) => ({ lat: coords.lat, lng: coords.lng }))
+    );
 
     // Fetch registered cars
     const registeredCars = await fetchSpotData("registeredCars");
@@ -178,7 +181,6 @@ app.get("/getParkingspots", async (req, res) => {
   }
 });
 
-
 async function uploadDetectedCars(detectedCars) {
   const batch = db.batch();
   const collectionRef = db.collection("detectedCars");
@@ -195,7 +197,6 @@ async function uploadDetectedCars(detectedCars) {
     console.log("No detectedCars to upload.");
   }
 }
-
 
 async function uploadRegisteredCars(registeredCars) {
   const batch = db.batch(); // Create a batch operation
@@ -246,11 +247,39 @@ app.post("/detection2.0", async (req, res) => {
 
   try {
     await uploadDetectedCars(detectedCars); // Added await
+
+    // Finds candidate spots based on the car's direction .
+    const { candidateSpots, direction } = await findCandidateSpots(
+      oldLat,
+      oldLng,
+      newLat,
+      newLng
+    );
+
+    // Convert to ParkingSpot objects
+    candidateCars = candidateSpots.map(
+      (spot) =>
+        new ParkingSpot(
+          spot.spotID,
+          spot.latitude,
+          spot.longitude,
+          spot.occupied
+        )
+    );
+
+    // Matches registered cars with the closest candidateSpot spot within a 10m threshold.
+    if (candidateCars.length > 0) {
+      const parkedCars = await matchCarsToSpots2(candidateCars, detectedCars);
+
+      // Pass direction to update the correct Firestore subcollection
+      await updateParkingStatusOfSpots(candidateCars, parkedCars, direction);
+    }
+
     res.json({ message: "Detected cars uploaded successfully" });
   } catch (error) {
-    return res.status(500).json({ 
-      error: "Internal server error", 
-      details: error.message 
+    return res.status(500).json({
+      error: "Internal server error",
+      details: error.message,
     });
   }
 });
@@ -265,15 +294,19 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
   if (!oldLat || !oldLng || !newLat || !newLng || !registeredCars) {
     return res.status(400).json({ error: "Missing required fields" });
   }
-  
-let heading = getRunwayHeading(oldLat, oldLng, newLat, newLng);
-console.log("heading", heading)
-
 
   try {
+    uploadRegisteredCars(registeredCars);
+    uploadOldAndNewCoords(oldLat, oldLng, newLat, newLng);
+
     // Finds candidate spots based on the car's direction .
-    const { candidateSpots, direction } = await findCandidateSpots(oldLat, oldLng, newLat, newLng, heading);
-    
+    const { candidateSpots, direction } = await findCandidateSpots(
+      oldLat,
+      oldLng,
+      newLat,
+      newLng
+    );
+
     // Convert to ParkingSpot objects
     candidateCars = candidateSpots.map(
       (spot) =>
@@ -289,12 +322,8 @@ console.log("heading", heading)
     if (candidateCars.length > 0) {
       const parkedCars = await matchCarsToSpots(candidateCars, registeredCars);
 
-    // Pass direction to update the correct Firestore subcollection
-      await updateParkingStatusOfSpots(
-        candidateCars,
-        parkedCars,
-        direction
-      );
+      // Pass direction to update the correct Firestore subcollection
+      await updateParkingStatusOfSpots(candidateCars, parkedCars, direction);
     }
 
     // Process data
@@ -316,9 +345,6 @@ async function updateParkingStatusOfSpots(
 ) {
   try {
     console.log("Updating parking status...");
-    //console.log("Candidates:", candidatespots);
-    // console.log("Registered:", registeredCars);
-    // console.log("Direction:", direction);
 
     if (candidatespots.length > 0) {
       await updateSpotsInFirestore(candidatespots, false, direction);
@@ -371,17 +397,17 @@ async function matchCarsToSpots(allCandidates, registeredCars) {
 
   // Iterate over each registered car to find a matching parking spot
   registeredCars.forEach((car) => {
-    // Calculate the target location where the car is expected to stop
+    let currentClosestDistance = 10000.0; // Large initial distance
+    let currentCandidate = null;
+    let currentCandidateIndex = -1; // Track the index for removal
+
+    // Calculate the target location where the spotted car is expected to be
     var registeredCarTarget = calculateTarget(
       car.oldLat,
       car.oldLng,
       car.newLat,
       car.newLng
     );
-
-    let currentClosestDistance = 10000.0; // Large initial distance
-    let currentCandidate = null;
-    let currentCandidateIndex = -1; // Track the index for removal
 
     // Iterate over all candidate parking spots to find the closest match
     allCandidates.forEach((candidate, index) => {
@@ -412,13 +438,54 @@ async function matchCarsToSpots(allCandidates, registeredCars) {
       console.log("No valid candidate found for car:", car);
     }
   });
-
   console.log("candidates to be updated", candidates);
-
   return candidates; // Return the best-matching parking spots for each registered car
 }
 
-async function findCandidateSpots(oldLat, oldLng, newLat, newLng, heading) {
+async function matchCarsToSpots2(allCandidates, detectedCars) {
+  var candidates = [];
+  let threshold = 0.01; // Threshold for matching (10 meters)
+
+  // Iterate over each registered car to find a matching parking spot
+  detectedCars.forEach((car) => {
+    let currentClosestDistance = 10000.0; // Large initial distance
+    let currentCandidate = null;
+    let currentCandidateIndex = -1; // Track the index for removal
+
+    // Iterate over all candidate parking spots to find the closest match
+    allCandidates.forEach((candidate, index) => {
+      var currentDistance = getDistanceFromLatLngInKm(
+        car.lat,
+        car.lng,
+        candidate.latitude,
+        candidate.longitude
+      );
+
+      // Check if this candidate is the closest valid one within the threshold
+      if (
+        currentDistance < currentClosestDistance &&
+        currentDistance < threshold
+      ) {
+        currentClosestDistance = currentDistance;
+        currentCandidate = candidate;
+        currentCandidateIndex = index; // Store index for removal
+        console.log("currentCandidateIndex: ", currentCandidate);
+      }
+    });
+
+    // If a valid candidate is found, add it to the result list and remove it from allCandidates
+    if (currentCandidate) {
+      candidates.push(currentCandidate);
+      allCandidates.splice(currentCandidateIndex, 1); // Remove assigned candidate
+    } else {
+      console.log("No valid candidate found for the car:", car);
+    }
+  });
+  console.log("candidates to be updated", candidates);
+  return candidates; // Return the best-matching parking spots for each registered car
+}
+
+async function findCandidateSpots(oldLat, oldLng, newLat, newLng) {
   const candidateSpots = [];
 
   // Calculate driven distance
@@ -429,7 +496,8 @@ async function findCandidateSpots(oldLat, oldLng, newLat, newLng, heading) {
     newLng
   );
 
-  let direction = heading.toString()
+  // Get the Runway heading to lookup in Firestore
+  let direction = getRunwayHeading(oldLat, oldLng, newLat, newLng);
 
   // Fetch parking spots from Firestore based on directin
   const parkingSpotsRef = db.collection(direction);
@@ -450,7 +518,7 @@ async function findCandidateSpots(oldLat, oldLng, newLat, newLng, heading) {
       spotData.longitude
     );
 
-    //If parkingspots are less or equal to driven distance, add to a list of candidate spots. 
+    //If parkingspots are less or equal to driven distance, add to a list of candidate spots.
     if (distanceToSpot <= drivenDistance) {
       candidateSpots.push(
         new ParkingSpot(
@@ -462,7 +530,7 @@ async function findCandidateSpots(oldLat, oldLng, newLat, newLng, heading) {
       );
     }
   });
-  
+
   return { drivenDistance, candidateSpots, direction };
 }
 
@@ -639,14 +707,13 @@ function getRunwayHeading(lat1, lon1, lat2, lon2) {
   const roundedBearing = (Math.round(θ / 10) * 10) % 360;
   const runwayHeading = Math.floor(roundedBearing / 10);
 
-  return runwayHeading;
+  return runwayHeading.toString();
 }
 
 function getOppositeRunway(heading) {
   console.log("heading", heading);
   return (heading + 18) % 36;
 }
-
 
 // Start the server
 app.listen(port, () => {
