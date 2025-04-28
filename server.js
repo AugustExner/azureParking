@@ -86,6 +86,7 @@ app.get("/getParkingspots", async (req, res) => {
     const compass1 = [];
     const compass19 = [];
     const compass29 = [];
+    const allSpots = [];
 
     const oldCoords = [];
     const newCoords = [];
@@ -102,6 +103,19 @@ app.get("/getParkingspots", async (req, res) => {
     // Fetch all collections
     for (const collectionRef of collections) {
       const collectionName = collectionRef.id;
+
+      // Fetch spots for all
+      if (collectionName === "all") {
+        const spots = await fetchSpotData("all");
+        allSpots.push(
+          ...spots.map((spot) => ({
+            latitude: spot.latitude,
+            longitude: spot.longitude,
+            occupied: spot.occupied,
+            spotID: spot.spotID,
+          }))
+        );
+      }
 
       // Fetch spots for compass "1"
       if (collectionName === "1") {
@@ -174,6 +188,7 @@ app.get("/getParkingspots", async (req, res) => {
       compass1,
       compass19,
       compass29,
+      allSpots
     });
   } catch (error) {
     console.error("Error fetching parking spots:", error);
@@ -246,6 +261,7 @@ app.post("/detection2.0", async (req, res) => {
   }
 
   try {
+    await uploadOldAndNewCoords(oldLat, oldLng, newLat, newLng);
     await uploadDetectedCars(detectedCars); // Added await
 
     // Finds candidate spots based on the car's direction .
@@ -272,7 +288,7 @@ app.post("/detection2.0", async (req, res) => {
       const parkedCars = await matchCarsToSpots2(candidateCars, detectedCars);
 
       // Pass direction to update the correct Firestore subcollection
-      await updateParkingStatusOfSpots(candidateCars, parkedCars, direction);
+      await updateParkingStatusOfSpots(candidateCars, parkedCars, "all");
     }
 
     res.json({ message: "Detected cars uploaded successfully" });
@@ -307,6 +323,7 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
       newLng
     );
 
+    console.log("candidates Found");
     // Convert to ParkingSpot objects
     candidateCars = candidateSpots.map(
       (spot) =>
@@ -323,7 +340,7 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
       const parkedCars = await matchCarsToSpots(candidateCars, registeredCars);
 
       // Pass direction to update the correct Firestore subcollection
-      await updateParkingStatusOfSpots(candidateCars, parkedCars, direction);
+      await updateParkingStatusOfSpots(candidateCars, parkedCars, "all");
     }
 
     // Process data
@@ -443,9 +460,9 @@ async function matchCarsToSpots(allCandidates, registeredCars) {
 }
 
 async function matchCarsToSpots2(allCandidates, detectedCars) {
-  console.log("matchCarsToSpots2")
+  console.log("matchCarsToSpots2");
   var candidates = [];
-  let threshold = 0.01; // Threshold for matching (10 meters)
+  let threshold = 0.02; // Threshold for matching (10 meters)
 
   // Iterate over each registered car to find a matching parking spot
   detectedCars.forEach((car) => {
@@ -499,10 +516,10 @@ async function findCandidateSpots(oldLat, oldLng, newLat, newLng) {
 
   // Get the Runway heading to lookup in Firestore
   let direction = getRunwayHeading(oldLat, oldLng, newLat, newLng);
-  console.log("direction", direction)
+  console.log("direction", direction);
 
-  // Fetch parking spots from Firestore based on directin
-  const parkingSpotsRef = db.collection(direction);
+  // Fetch ALL parking spots from Firestore 
+  const parkingSpotsRef = db.collection("all");
   const parkingSpotsSnapshot = await parkingSpotsRef.get();
 
   // Check if collection exists
