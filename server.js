@@ -246,7 +246,8 @@ app.post("/detection2.0", async (req, res) => {
   }
 
   try {
-    await uploadDetectedCars(detectedCars); // Added await
+    await uploadDetectedCars(detectedCars);
+    await uploadOldAndNewCoords(oldLat, oldLng, newLat, newLng);
 
     // Finds candidate spots based on the car's direction .
     const { candidateSpots, direction } = await findCandidateSpots(
@@ -443,7 +444,7 @@ async function matchCarsToSpots(allCandidates, registeredCars) {
 }
 
 async function matchCarsToSpots2(allCandidates, detectedCars) {
-  console.log("matchCarsToSpots2")
+  console.log("matchCarsToSpots2");
   var candidates = [];
   let threshold = 0.01; // Threshold for matching (10 meters)
 
@@ -470,13 +471,19 @@ async function matchCarsToSpots2(allCandidates, detectedCars) {
         currentClosestDistance = currentDistance;
         currentCandidate = candidate;
         currentCandidateIndex = index; // Store index for removal
-        console.log("currentCandidateIndex: ", currentCandidate);
+        //console.log("currentCandidateIndex: ", currentCandidate);
       }
     });
 
     // If a valid candidate is found, add it to the result list and remove it from allCandidates
     if (currentCandidate) {
       candidates.push(currentCandidate);
+      console.log("\n\n");
+      console.log("Match Between:");
+      console.log(currentCandidate);
+      console.log("registeredCar", car);
+      console.log("\n\n");
+
       allCandidates.splice(currentCandidateIndex, 1); // Remove assigned candidate
     } else {
       console.log("No valid candidate found for the car:", car);
@@ -499,7 +506,7 @@ async function findCandidateSpots(oldLat, oldLng, newLat, newLng) {
 
   // Get the Runway heading to lookup in Firestore
   let direction = getRunwayHeading(oldLat, oldLng, newLat, newLng);
-  console.log("direction", direction)
+  console.log("direction", direction);
 
   // Fetch parking spots from Firestore based on directin
   const parkingSpotsRef = db.collection(direction);
@@ -513,6 +520,7 @@ async function findCandidateSpots(oldLat, oldLng, newLat, newLng) {
   // Calculate distance from start point to each known parking spot within DB collection.
   parkingSpotsSnapshot.forEach((spot) => {
     const spotData = spot.data();
+
     const distanceToSpot = getDistanceFromLatLngInKm(
       oldLat,
       oldLng,
@@ -520,8 +528,19 @@ async function findCandidateSpots(oldLat, oldLng, newLat, newLng) {
       spotData.longitude
     );
 
+    const isParkingSpotInDirection = calculateRunwayDiff(
+      oldLat,
+      oldLng,
+      newLat,
+      newLng,
+      spotData.latitude,
+      spotData.longitude
+    );
+
+    console.log("BoolDirection", isParkingSpotInDirection)
+
     //If parkingspots are less or equal to driven distance, add to a list of candidate spots.
-    if (distanceToSpot <= drivenDistance) {
+    if (distanceToSpot <= drivenDistance && isParkingSpotInDirection) {
       candidateSpots.push(
         new ParkingSpot(
           spotData.spotID,
@@ -716,6 +735,26 @@ function getOppositeRunway(heading) {
   console.log("heading", heading);
   return (heading + 18) % 36;
 }
+
+function calculateRunwayDiff(
+  lat1,
+  lng1,
+  lat2,
+  lng2,
+  parkingspotLat,
+  parkingspotLng
+) {
+  const maxDiff = 5;
+
+  const runway1 = getRunwayHeading(lat1, lng1, lat2, lng2);
+  const runway2 = getRunwayHeading(lat1, lng1, parkingspotLat, parkingspotLng);
+
+  const diff = Math.abs(runway1 - runway2);
+  console.log("diff:", diff);
+
+  return diff <= maxDiff;
+}
+
 
 // Start the server
 app.listen(port, () => {
