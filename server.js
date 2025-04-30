@@ -84,8 +84,8 @@ app.get("/getParkingspots", async (req, res) => {
     const parkingSpots = {};
     const registeredCarsData = [];
     const compass1 = [];
-    const compass19 = [];
-    const compass29 = [];
+    const compass10 = [];
+    const compass14 = [];
 
     const oldCoords = [];
     const newCoords = [];
@@ -117,9 +117,9 @@ app.get("/getParkingspots", async (req, res) => {
       }
 
       // Fetch spots for compass "19"
-      if (collectionName === "19") {
-        const spots = await fetchSpotData("19");
-        compass19.push(
+      if (collectionName === "10") {
+        const spots = await fetchSpotData("10");
+        compass10.push(
           ...spots.map((spot) => ({
             latitude: spot.latitude,
             longitude: spot.longitude,
@@ -130,9 +130,9 @@ app.get("/getParkingspots", async (req, res) => {
       }
 
       // Fetch spots for compass "29"
-      if (collectionName === "29") {
-        const spots = await fetchSpotData("29");
-        compass29.push(
+      if (collectionName === "14") {
+        const spots = await fetchSpotData("14");
+        compass14.push(
           ...spots.map((spot) => ({
             latitude: spot.latitude,
             longitude: spot.longitude,
@@ -172,8 +172,8 @@ app.get("/getParkingspots", async (req, res) => {
       oldCoords,
       newCoords,
       compass1,
-      compass19,
-      compass29,
+      compass10,
+      compass14,
     });
   } catch (error) {
     console.error("Error fetching parking spots:", error);
@@ -537,7 +537,7 @@ async function findCandidateSpots(oldLat, oldLng, newLat, newLng) {
       spotData.longitude
     );
 
-    console.log("BoolDirection", isParkingSpotInDirection)
+    //console.log("BoolDirection", isParkingSpotInDirection)
 
     //If parkingspots are less or equal to driven distance, add to a list of candidate spots.
     if (distanceToSpot <= drivenDistance && isParkingSpotInDirection) {
@@ -723,10 +723,12 @@ function getRunwayHeading(lat1, lon1, lat2, lon2) {
     Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
 
   let θ = toDegrees(Math.atan2(y, x));
+
   θ = (θ + 360) % 360; // Normalize to 0–360
 
-  const roundedBearing = (Math.round(θ / 10) * 10) % 360;
-  const runwayHeading = Math.floor(roundedBearing / 10);
+  const roundedBearing = (Math.round(θ / 20) * 20) % 360;
+
+  const runwayHeading = Math.floor(roundedBearing / 20);
 
   return runwayHeading.toString();
 }
@@ -750,7 +752,6 @@ function calculateRunwayDiff(
   const runway2 = getRunwayHeading(lat1, lng1, parkingspotLat, parkingspotLng);
 
   const diff = Math.abs(runway1 - runway2);
-  console.log("diff:", diff);
 
   return diff <= maxDiff;
 }
