@@ -83,9 +83,9 @@ app.get("/getParkingspots", async (req, res) => {
     const collections = await db.listCollections();
     const parkingSpots = {};
     const registeredCarsData = [];
-    const compass1 = [];
-    const compass10 = [];
-    const compass14 = [];
+    const compass0 = [];
+    const compass5 = [];
+    const compass7 = [];
 
     const oldCoords = [];
     const newCoords = [];
@@ -103,10 +103,10 @@ app.get("/getParkingspots", async (req, res) => {
     for (const collectionRef of collections) {
       const collectionName = collectionRef.id;
 
-      // Fetch spots for compass "1"
-      if (collectionName === "1") {
-        const spots = await fetchSpotData("1");
-        compass1.push(
+      // Fetch spots for compass "0"
+      if (collectionName === "0") {
+        const spots = await fetchSpotData("0");
+        compass0.push(
           ...spots.map((spot) => ({
             latitude: spot.latitude,
             longitude: spot.longitude,
@@ -116,10 +116,10 @@ app.get("/getParkingspots", async (req, res) => {
         );
       }
 
-      // Fetch spots for compass "19"
-      if (collectionName === "10") {
-        const spots = await fetchSpotData("10");
-        compass10.push(
+      // Fetch spots for compass "5"
+      if (collectionName === "5") {
+        const spots = await fetchSpotData("5");
+        compass5.push(
           ...spots.map((spot) => ({
             latitude: spot.latitude,
             longitude: spot.longitude,
@@ -130,9 +130,9 @@ app.get("/getParkingspots", async (req, res) => {
       }
 
       // Fetch spots for compass "29"
-      if (collectionName === "14") {
-        const spots = await fetchSpotData("14");
-        compass14.push(
+      if (collectionName === "7") {
+        const spots = await fetchSpotData("7");
+        compass7.push(
           ...spots.map((spot) => ({
             latitude: spot.latitude,
             longitude: spot.longitude,
@@ -171,9 +171,9 @@ app.get("/getParkingspots", async (req, res) => {
       registeredCarsData,
       oldCoords,
       newCoords,
-      compass1,
-      compass10,
-      compass14,
+      compass0,
+      compass5,
+      compass7,
     });
   } catch (error) {
     console.error("Error fetching parking spots:", error);
@@ -246,8 +246,19 @@ app.post("/detection2.0", async (req, res) => {
   }
 
   try {
+    // const snappedDirection = await mapMatchingAPI(oldLat, oldLng, newLat, newLng);
+    // const { snapOldLat, snapOldLng, snapNewLat, snapNewLng } = snappedDirection;
+
     await uploadDetectedCars(detectedCars);
     await uploadOldAndNewCoords(oldLat, oldLng, newLat, newLng);
+
+    // Finds candidate spots based on the car's direction + MapMatching .
+    // const { candidateSpots, direction } = await findCandidateSpots(
+    //   snapOldLat,
+    //   snapOldLng,
+    //   snapNewLat,
+    //   snapNewLng
+    // );
 
     // Finds candidate spots based on the car's direction .
     const { candidateSpots, direction } = await findCandidateSpots(
@@ -267,6 +278,13 @@ app.post("/detection2.0", async (req, res) => {
           spot.occupied
         )
     );
+    console.log("start: ", oldLat, oldLng)
+    console.log("end: ", newLat, newLng)
+
+    console.log("passed spots:")
+    candidateCars.forEach(element => {
+      console.log("spotID: ", element.spotID)
+    });
 
     // Matches registered cars with the closest candidateSpot spot within a 10m threshold.
     if (candidateCars.length > 0) {
@@ -298,7 +316,7 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
 
   try {
     uploadRegisteredCars(registeredCars);
-    uploadOldAndNewCoords(oldLat, oldLng, newLat, newLng);
+    uploadOldAndNewCoords(snapOldLat, snapOldLng, snapNewLat, snapNewLng);
 
     // Finds candidate spots based on the car's direction .
     const { candidateSpots, direction } = await findCandidateSpots(
@@ -489,7 +507,6 @@ async function matchCarsToSpots2(allCandidates, detectedCars) {
       console.log("No valid candidate found for the car:", car);
     }
   });
-  console.log("candidates to be updated", candidates);
   return candidates; // Return the best-matching parking spots for each registered car
 }
 
@@ -539,8 +556,9 @@ async function findCandidateSpots(oldLat, oldLng, newLat, newLng) {
 
     //console.log("BoolDirection", isParkingSpotInDirection)
 
-    //If parkingspots are less or equal to driven distance, add to a list of candidate spots.
-    if (distanceToSpot <= drivenDistance && isParkingSpotInDirection) {
+    //If parkingspots are less or equal to driven distance + 10meter, add to a list of candidate spots.
+    if (distanceToSpot >= 0.01 && distanceToSpot <= drivenDistance + 0.01 && isParkingSpotInDirection) {
+    
       candidateSpots.push(
         new ParkingSpot(
           spotData.spotID,
@@ -617,7 +635,13 @@ function calculateTarget(oldLat, oldLng, newLat, newLng, street) {
 //2. Compare target to closets existing spots
 
 //3. Flip exissting spot
-async function mapMatchingAPI(oldLat, oldLng, newLat, newLng, registeredCars) {
+async function mapMatchingAPIRegisteredCars(
+  oldLat,
+  oldLng,
+  newLat,
+  newLng,
+  registeredCars
+) {
   const baseUrl = "https://roads.googleapis.com/v1/snapToRoads";
   console.log("RegisteredCars:", registeredCars.length);
 
@@ -683,6 +707,37 @@ async function mapMatchingAPI(oldLat, oldLng, newLat, newLng, registeredCars) {
   }
 }
 
+async function mapMatchingAPI(oldLat, oldLng, newLat, newLng) {
+  const baseUrl = "https://roads.googleapis.com/v1/snapToRoads";
+  const path = `${oldLat},${oldLng}|${newLat},${newLng}`;
+  const url = `${baseUrl}?path=${path}&key=${google_api}`;
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.snappedPoints || data.snappedPoints.length < 2) {
+      throw new Error("Invalid snappedPoints data received.");
+    }
+
+    const snappedDirection = {
+      snapOldLat: data.snappedPoints[0].location.latitude,
+      snapOldLng: data.snappedPoints[0].location.longitude,
+      snapNewLat: data.snappedPoints[1].location.latitude,
+      snapNewLng: data.snappedPoints[1].location.longitude,
+    };
+
+    return snappedDirection;
+  } catch (error) {
+    console.error("Error fetching map matching data:", error);
+    return null;
+  }
+}
+
 async function googleGeocode(lat, lng) {
   const API_KEY = google_api; // Replace with your actual API key
   const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${API_KEY}`;
@@ -726,12 +781,44 @@ function getRunwayHeading(lat1, lon1, lat2, lon2) {
 
   θ = (θ + 360) % 360; // Normalize to 0–360
 
-  const roundedBearing = (Math.round(θ / 20) * 20) % 360;
-
-  const runwayHeading = Math.floor(roundedBearing / 20);
+  const roundedBearing = (Math.round(θ / 40) * 40) % 360;
+  const runwayHeading = Math.floor(roundedBearing / 40);
 
   return runwayHeading.toString();
 }
+
+//Åbogade
+const åboDirection = getRunwayHeading(
+  56.171793,
+  10.187792,
+  56.173732,
+  10.188623
+);
+//Katrinebjervej
+const katrineDirection = getRunwayHeading(
+  56.173732,
+  10.188623,
+  56.173287,
+  10.191241
+);
+//FindlandsGade
+const finlandDirection = getRunwayHeading(
+  56.173287,
+  10.191241,
+  56.171351,
+  10.190399
+);
+//Helsingforsgade
+const helsingforsDirection = getRunwayHeading(
+  56.171351,
+  10.190399,
+  56.17179,
+  10.187786
+);
+console.log("åbo: ", åboDirection);
+//console.log("katrine: ", katrineDirection);
+console.log("finlands: ", finlandDirection);
+console.log("helsingfors: ", helsingforsDirection);
 
 function getOppositeRunway(heading) {
   console.log("heading", heading);
@@ -746,7 +833,7 @@ function calculateRunwayDiff(
   parkingspotLat,
   parkingspotLng
 ) {
-  const maxDiff = 5;
+  const maxDiff = 1; //40 Degree
 
   const runway1 = getRunwayHeading(lat1, lng1, lat2, lng2);
   const runway2 = getRunwayHeading(lat1, lng1, parkingspotLat, parkingspotLng);
@@ -755,7 +842,6 @@ function calculateRunwayDiff(
 
   return diff <= maxDiff;
 }
-
 
 // Start the server
 app.listen(port, () => {
