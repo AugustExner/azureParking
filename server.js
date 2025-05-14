@@ -26,10 +26,155 @@ admin.initializeApp({
 
 const db = admin.firestore(); // Initialize Firestore
 
-app.get("/", (req, res) => {
-  return res.status(200).json({
-    msg: "Parking-backend",
-  });
+app.get("/getDetectedCars", async (req, res) => {
+  try {
+    const snapshot = await db.collection("detectedCars").get();
+
+    const detectedCars = [];
+    snapshot.forEach((doc) => {
+      detectedCars.push({ id: doc.id, ...doc.data() });
+    });
+
+    res.json({ detectedCars });
+  } catch (error) {
+    res.status(500).json({
+      error: "Failed to fetch detected cars",
+      details: error.message,
+    });
+  }
+});
+
+app.get("/getParkingspots", async (req, res) => {
+  try {
+    const collections = await db.listCollections();
+    const parkingSpots = {};
+    const registeredCarsData = [];
+    const compass0 = [];
+    const compass5 = [];
+    const compass7 = [];
+
+    const oldCoords = [];
+    const newCoords = [];
+
+    // Helper to fetch spot data
+    const fetchSpotData = async (collectionName) => {
+      const snapshot = await db.collection(collectionName).get();
+      if (!snapshot.empty) {
+        return snapshot.docs.map((doc) => doc.data());
+      }
+      return [];
+    };
+
+    // Fetch all collections
+    for (const collectionRef of collections) {
+      const collectionName = collectionRef.id;
+
+      // Fetch spots for compass "1"
+      if (collectionName === "0") {
+        const spots = await fetchSpotData("0");
+        compass0.push(
+          ...spots.map((spot) => ({
+            latitude: spot.latitude,
+            longitude: spot.longitude,
+            occupied: spot.occupied,
+            spotID: spot.spotID,
+            color: spot.color
+          }))
+        );
+      }
+
+      // Fetch spots for compass "19"
+      if (collectionName === "5") {
+        const spots = await fetchSpotData("5");
+        compass5.push(
+          ...spots.map((spot) => ({
+            latitude: spot.latitude,
+            longitude: spot.longitude,
+            occupied: spot.occupied,
+            spotID: spot.spotID,
+            color: spot.color
+          }))
+        );
+      }
+
+      // Fetch spots for compass "7"
+      if (collectionName === "7") {
+        const spots = await fetchSpotData("7");
+        compass7.push(
+          ...spots.map((spot) => ({
+            latitude: spot.latitude,
+            longitude: spot.longitude,
+            occupied: spot.occupied,
+            spotID: spot.spotID,
+            color: spot.color
+          }))
+        );
+      }
+    }
+
+    // Fetch start coordinates
+    const oldCoordsDocs = await fetchSpotData("oldCoords");
+    oldCoords.push(
+      ...oldCoordsDocs.map((coords) => ({ lat: coords.lat, lng: coords.lng }))
+    );
+
+    // Fetch end coordinates
+    const newCoordsDocs = await fetchSpotData("newCoords");
+    newCoords.push(
+      ...newCoordsDocs.map((coords) => ({ lat: coords.lat, lng: coords.lng }))
+    );
+
+    // Fetch registered cars
+    const registeredCars = await fetchSpotData("registeredCars");
+    registeredCarsData.push(
+      ...registeredCars.map((car) => ({
+        oldLat: car.oldLat,
+        oldLng: car.oldLng,
+        newLat: car.newLat,
+        newLng: car.newLng,
+      }))
+    );
+
+
+    res.json({
+      parkingSpots,
+      registeredCarsData,
+      oldCoords,
+      newCoords,
+      compass0,
+      compass5,
+      compass7,
+    });
+  } catch (error) {
+    console.error("Error fetching parking spots:", error);
+    res.status(500).json({ error: "Failed to retrieve parking spots" });
+  }
+});
+
+
+
+
+
+async function uploadDetectedCars(detectedCars, color) {
+  const batch = db.batch();
+  const collectionRef = db.collection("detectedCars");
+  const colorLabel = getColorLabel(color); // Get string label
+
+  if (detectedCars.length > 0) {
+    detectedCars.forEach((car) => {
+      car.color = colorLabel;
+      const docRef = collectionRef.doc(); // Unique doc for each car
+      batch.set(docRef, car);
+    });
+
+    await batch.commit();
+    console.log("Successfully uploaded detectedCars.");
+  } else {
+    console.log("No detectedCars to upload.");
+  }
+}
+app.get("/singleCollection", (req, res) => {
+  return res.status(200).json({ msg });
 });
 
 // POST request to upload parking spots from JSON file to Firestore
@@ -78,112 +223,6 @@ app.get("/getDetectedCars", async (req, res) => {
   }
 });
 
-app.get("/getParkingspots", async (req, res) => {
-  try {
-    const collections = await db.listCollections();
-    const parkingSpots = {};
-    const registeredCarsData = [];
-    const compass0 = [];
-    const compass5 = [];
-    const compass7 = [];
-
-    const oldCoords = [];
-    const newCoords = [];
-
-    // Helper to fetch spot data
-    const fetchSpotData = async (collectionName) => {
-      const snapshot = await db.collection(collectionName).get();
-      if (!snapshot.empty) {
-        return snapshot.docs.map((doc) => doc.data());
-      }
-      return [];
-    };
-    2;
-
-    // Fetch all collections
-    for (const collectionRef of collections) {
-      const collectionName = collectionRef.id;
-
-      // Fetch spots for compass "0"
-      if (collectionName === "0") {
-        const spots = await fetchSpotData("0");
-        compass0.push(
-          ...spots.map((spot) => ({
-            latitude: spot.latitude,
-            longitude: spot.longitude,
-            occupied: spot.occupied,
-            spotID: spot.spotID,
-            color: spot.color,
-          }))
-        );
-      }
-
-      // Fetch spots for compass "5"
-      if (collectionName === "5") {
-        const spots = await fetchSpotData("5");
-        compass5.push(
-          ...spots.map((spot) => ({
-            latitude: spot.latitude,
-            longitude: spot.longitude,
-            occupied: spot.occupied,
-            spotID: spot.spotID,
-            color: spot.color,
-          }))
-        );
-      }
-
-      // Fetch spots for compass "29"
-      if (collectionName === "7") {
-        const spots = await fetchSpotData("7");
-        compass7.push(
-          ...spots.map((spot) => ({
-            latitude: spot.latitude,
-            longitude: spot.longitude,
-            occupied: spot.occupied,
-            spotID: spot.spotID,
-            color: spot.color,
-          }))
-        );
-      }
-    }
-
-    // Fetch start coordinates
-    const oldCoordsDocs = await fetchSpotData("oldCoords");
-    oldCoords.push(
-      ...oldCoordsDocs.map((coords) => ({ lat: coords.lat, lng: coords.lng }))
-    );
-
-    // Fetch end coordinates
-    const newCoordsDocs = await fetchSpotData("newCoords");
-    newCoords.push(
-      ...newCoordsDocs.map((coords) => ({ lat: coords.lat, lng: coords.lng }))
-    );
-
-    // Fetch registered cars
-    const registeredCars = await fetchSpotData("registeredCars");
-    registeredCarsData.push(
-      ...registeredCars.map((car) => ({
-        oldLat: car.oldLat,
-        oldLng: car.oldLng,
-        newLat: car.newLat,
-        newLng: car.newLng,
-      }))
-    );
-
-    res.json({
-      parkingSpots,
-      registeredCarsData,
-      oldCoords,
-      newCoords,
-      compass0,
-      compass5,
-      compass7,
-    });
-  } catch (error) {
-    console.error("Error fetching parking spots:", error);
-    res.status(500).json({ error: "Failed to retrieve parking spots" });
-  }
-});
 
 async function uploadDetectedCars(detectedCars, color) {
   const batch = db.batch();
@@ -192,7 +231,7 @@ async function uploadDetectedCars(detectedCars, color) {
 
   if (detectedCars.length > 0) {
     detectedCars.forEach((car) => {
-      car.color = colorLabel
+      car.color = colorLabel;
       const docRef = collectionRef.doc(); // Unique doc for each car
       batch.set(docRef, car);
     });
@@ -310,9 +349,6 @@ app.post("/detection2.0", async (req, res) => {
 });
 
 app.post("/updateMultipleParkingSpots", async (req, res) => {
-  
-
-
   const { oldLat, oldLng, newLat, newLng, registeredCars } = req.body;
 
   //Array to store candidate spots
@@ -359,13 +395,11 @@ app.post("/updateMultipleParkingSpots", async (req, res) => {
     res.json({
       message: "Updates multiple spots",
       msg: "UpdateMultipleParkingspots",
-      
     });
   } catch (error) {
     res
       .status(500)
       .json({ error: "Internal server error", details: error.message });
-      
   }
 });
 
